@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Live Camera Mesh</title>
+  <title>Live Camera Hub</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * {
@@ -13,7 +13,7 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     body {
-      background-color: #0b0f19;
+      background-color: #090d16;
       color: #f8fafc;
       min-height: 100vh;
       display: flex;
@@ -44,6 +44,16 @@
       background: #10b981;
       box-shadow: 0 0 8px #10b981;
     }
+    .stats-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    .stats-item strong {
+      color: #38bdf8;
+    }
     .controls {
       display: flex;
       gap: 8px;
@@ -66,18 +76,20 @@
       font-weight: 600;
       font-size: 14px;
       cursor: pointer;
+      transition: opacity 0.2s;
     }
-    button:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-    .btn-connect {
-      background: #3b82f6;
+    .btn-live {
+      background: #ef4444;
       color: #fff;
     }
-    .btn-media {
-      background: #334155;
+    .btn-stop {
+      background: #475569;
       color: #f8fafc;
+    }
+    .btn-media {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #334155;
     }
     main {
       flex: 1;
@@ -85,36 +97,35 @@
     }
     .video-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 18px;
     }
     .video-card {
-      position: relative;
       background: #111827;
       border-radius: 12px;
       overflow: hidden;
-      aspect-ratio: 16 / 9;
       border: 1px solid #1f2937;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    }
+    .video-box {
+      position: relative;
+      aspect-ratio: 16 / 9;
       cursor: pointer;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-      transition: transform 0.15s ease, border-color 0.15s ease;
+      background: #030712;
     }
-    .video-card:hover {
-      transform: translateY(-2px);
-      border-color: #3b82f6;
-    }
-    .video-card video {
+    .video-box video {
       width: 100%;
       height: 100%;
       object-fit: cover;
       display: block;
-      background: #030712;
     }
     .video-overlay {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      right: 10px;
+      top: 8px;
+      left: 8px;
+      right: 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -133,8 +144,31 @@
       border-radius: 6px;
       font-size: 11px;
     }
+    /* Video Info Footer Bar */
+    .card-footer {
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0b1120;
+      border-top: 1px solid #1e293b;
+      font-size: 13px;
+    }
+    .viewer-count {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #38bdf8;
+      font-weight: 500;
+    }
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 60px 20px;
+      color: #64748b;
+    }
 
-    /* Fullscreen Modal View */
+    /* Fullscreen Modal */
     #fullscreenModal {
       position: fixed;
       inset: 0;
@@ -150,9 +184,8 @@
     }
     #modalVideo {
       max-width: 95vw;
-      max-height: 85vh;
+      max-height: 80vh;
       border-radius: 8px;
-      box-shadow: 0 0 40px rgba(0, 0, 0, 0.9);
     }
     .modal-controls {
       margin-top: 16px;
@@ -175,178 +208,212 @@
   <header>
     <div class="brand">
       <div id="statusDot" class="status-dot"></div>
-      <h2>Live Camera Mesh</h2>
+      <h2>Live Camera Hub</h2>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stats-item">Total Audience: <strong id="totalAudience">0</strong></div>
+      <div class="stats-item">Broadcasters: <strong id="totalBroadcasters">0</strong></div>
     </div>
 
     <div class="controls">
-      <input type="text" id="roomInput" value="room1" placeholder="Room Name" />
       <input type="text" id="userInput" placeholder="Your Name" />
-      <button id="joinBtn" class="btn-connect" onclick="joinRoom()">Join Live</button>
-      <button id="toggleCamBtn" class="btn-media" onclick="toggleCamera()" disabled>Cam Off</button>
-      <button id="toggleMicBtn" class="btn-media" onclick="toggleMic()" disabled>Mute Mic</button>
+      <button id="goLiveBtn" class="btn-live" onclick="toggleBroadcasting()">Go Live (Camera)</button>
+      <button id="toggleCamBtn" class="btn-media" onclick="toggleCamera()" style="display:none;">Cam Off</button>
+      <button id="toggleMicBtn" class="btn-media" onclick="toggleMic()" style="display:none;">Mute Mic</button>
     </div>
   </header>
 
   <main>
-    <div class="video-grid" id="grid"></div>
+    <div class="video-grid" id="grid">
+      <div class="empty-state" id="emptyState">
+        <h3>Connecting to live streams...</h3>
+        <p style="margin-top: 8px;">If no one is broadcasting, click "Go Live (Camera)" above to start.</p>
+      </div>
+    </div>
   </main>
 
+  <!-- Fullscreen Modal View with Unmuted Audio -->
   <div id="fullscreenModal">
     <video id="modalVideo" autoplay playsinline></video>
     <div class="modal-controls">
-      <span id="modalTitle" class="badge-name">User View</span>
+      <span id="modalTitle" class="badge-name">Broadcaster View</span>
       <button id="modalMuteBtn" class="btn-mute" onclick="toggleModalAudio()">Mute Audio</button>
       <button class="btn-close" onclick="closeFullscreen()">Exit Fullscreen</button>
     </div>
   </div>
 
   <script>
-    // Paste your Google Apps Script URL here:
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxB-xsqymTmcVU7tqiitoD47zkN0j-5qHmMwxKoOGTdTdWdLcabGg-VB6-H-g9ENYncRg/exec";
+    const ROOM_ID = "room1";
 
-    let localStream = null;
     let peer = null;
     let myPeerId = null;
-    let peers = {};
-    let syncInterval = null;
-    let userName = "User_" + Math.floor(100 + Math.random() * 900);
+    let localStream = null;
+    let isBroadcaster = false;
+    let currentViewerCount = 0;
+    let activeCalls = {};
+    let userName = "Viewer_" + Math.floor(100 + Math.random() * 900);
 
     document.getElementById("userInput").value = userName;
 
-    async function joinRoom() {
-      if (SCRIPT_URL === "YOUR_APPS_SCRIPT_WEB_APP_URL") {
-        alert("Please set your Google Apps Script Web App URL in index.html first!");
-        return;
-      }
+    // Automatic initialization: Every visitor joins as a silent viewer first
+    window.addEventListener("DOMContentLoaded", () => {
+      initViewerPeer();
+    });
 
-      const room = document.getElementById("roomInput").value.trim() || "room1";
-      const name = document.getElementById("userInput").value.trim();
-      if (name) userName = name;
-
-      try {
-        // Request Camera & Audio
-        localStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } },
-          audio: true
-        });
-
-        // Add local preview (muted to avoid echo)
-        addVideoStream("local", userName + " (You)", localStream, true);
-
-        // Setup WebRTC via PeerJS
-        peer = new Peer({
-          config: {
-            iceServers: [
-              { urls: "stun:stun.l.google.com:19302" },
-              { urls: "stun:stun1.l.google.com:19302" }
-            ]
-          }
-        });
-
-        peer.on("open", (id) => {
-          myPeerId = id;
-          document.getElementById("statusDot").classList.add("online");
-          document.getElementById("joinBtn").disabled = true;
-          document.getElementById("roomInput").disabled = true;
-          document.getElementById("userInput").disabled = true;
-          document.getElementById("toggleCamBtn").disabled = false;
-          document.getElementById("toggleMicBtn").disabled = false;
-
-          // Start syncing via Google Sheet
-          startSheetSignaling(room);
-        });
-
-        // Handle incoming calls from other peers discovered via Sheet
-        peer.on("call", (call) => {
-          call.answer(localStream);
-          const callerName = call.metadata?.name || "Peer";
-
-          call.on("stream", (remoteStream) => {
-            addVideoStream(call.peer, callerName, remoteStream, false);
-          });
-
-          call.on("close", () => {
-            removeVideoStream(call.peer);
-          });
-          peers[call.peer] = call;
-        });
-
-      } catch (err) {
-        alert("Camera or Microphone access denied: " + err.message);
-      }
-    }
-
-    // Register into Google Sheet and discover online peers
-    function startSheetSignaling(room) {
-      async function syncWithSheet() {
-        try {
-          // 1. Send heartbeat to Sheet
-          await fetch(SCRIPT_URL, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "text/plain" },
-            body: JSON.stringify({
-              action: "heartbeat",
-              room: room,
-              peerId: myPeerId,
-              name: userName
-            })
-          });
-
-          // 2. Fetch list of peers currently registered in this room
-          const res = await fetch(`${SCRIPT_URL}?room=${encodeURIComponent(room)}`);
-          const onlinePeers = await res.json();
-
-          const activeIds = new Set();
-
-          onlinePeers.forEach(peerInfo => {
-            const remoteId = peerInfo.peerId;
-            activeIds.add(remoteId);
-
-            // Connect if peer is new and our ID is higher (avoids dual-calling race conditions)
-            if (remoteId !== myPeerId && !peers[remoteId]) {
-              if (myPeerId > remoteId) {
-                const call = peer.call(remoteId, localStream, {
-                  metadata: { name: userName }
-                });
-
-                call.on("stream", (remoteStream) => {
-                  addVideoStream(remoteId, peerInfo.name, remoteStream, false);
-                });
-
-                call.on("close", () => {
-                  removeVideoStream(remoteId);
-                });
-
-                peers[remoteId] = call;
-              }
-            }
-          });
-
-          // Clean up disconnected peers that left the Sheet
-          Object.keys(peers).forEach(id => {
-            if (!activeIds.has(id)) {
-              removeVideoStream(id);
-            }
-          });
-
-        } catch (err) {
-          console.error("Sheet sync error:", err);
+    function initViewerPeer() {
+      peer = new Peer({
+        config: {
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:stun1.l.google.com:19302" }
+          ]
         }
-      }
+      });
 
-      syncWithSheet();
-      syncInterval = setInterval(syncWithSheet, 4000);
+      peer.on("open", (id) => {
+        myPeerId = id;
+        document.getElementById("statusDot").classList.add("online");
 
-      window.addEventListener("beforeunload", () => {
-        navigator.sendBeacon(SCRIPT_URL, JSON.stringify({
-          action: "leave",
-          peerId: myPeerId
-        }));
+        // Sync with Google Sheet periodically
+        syncRegistry();
+        setInterval(syncRegistry, 4000);
+      });
+
+      // Handle streams received from broadcasters
+      peer.on("call", (call) => {
+        // If we are a viewer, answer with an empty audio track or our stream if broadcasting
+        call.answer(localStream || undefined);
+        const callerName = call.metadata?.name || "Broadcaster";
+
+        call.on("stream", (remoteStream) => {
+          addVideoCard(call.peer, callerName, remoteStream, false);
+        });
+
+        call.on("close", () => {
+          removeVideoCard(call.peer);
+        });
+
+        activeCalls[call.peer] = call;
       });
     }
 
-    function addVideoStream(id, label, stream, isMuted) {
+    // Toggle broadcast state (Viewer <-> Broadcaster)
+    async function toggleBroadcasting() {
+      const liveBtn = document.getElementById("goLiveBtn");
+      const nameVal = document.getElementById("userInput").value.trim();
+      if (nameVal) userName = nameVal;
+
+      if (!isBroadcaster) {
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } },
+            audio: true
+          });
+
+          isBroadcaster = true;
+          liveBtn.textContent = "Stop Broadcasting";
+          liveBtn.className = "btn-stop";
+          document.getElementById("toggleCamBtn").style.display = "inline-block";
+          document.getElementById("toggleMicBtn").style.display = "inline-block";
+          document.getElementById("userInput").disabled = true;
+
+          // Display self video in the grid (muted to prevent echo)
+          addVideoCard("local", userName + " (You)", localStream, true);
+
+          // Immediately sync status as a broadcaster
+          syncRegistry();
+        } catch (err) {
+          alert("Could not access camera/microphone: " + err.message);
+        }
+      } else {
+        // Stop broadcasting
+        if (localStream) {
+          localStream.getTracks().forEach(t => t.stop());
+          localStream = null;
+        }
+        isBroadcaster = false;
+        liveBtn.textContent = "Go Live (Camera)";
+        liveBtn.className = "btn-live";
+        document.getElementById("toggleCamBtn").style.display = "none";
+        document.getElementById("toggleMicBtn").style.display = "none";
+        document.getElementById("userInput").disabled = false;
+
+        removeVideoCard("local");
+        syncRegistry();
+      }
+    }
+
+    // Sync with Google Sheet backend
+    async function syncRegistry() {
+      if (!myPeerId || SCRIPT_URL === "YOUR_APPS_SCRIPT_WEB_APP_URL") return;
+
+      try {
+        // 1. Post heartbeat with current role
+        await fetch(SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({
+            action: "heartbeat",
+            room: ROOM_ID,
+            peerId: myPeerId,
+            name: userName,
+            role: isBroadcaster ? "broadcaster" : "viewer"
+          })
+        });
+
+        // 2. Fetch active broadcasters & viewer count
+        const res = await fetch(`${SCRIPT_URL}?room=${encodeURIComponent(ROOM_ID)}`);
+        const data = await res.json();
+
+        currentViewerCount = data.viewerCount;
+        document.getElementById("totalAudience").textContent = data.viewerCount;
+        document.getElementById("totalBroadcasters").textContent = data.broadcasters.length;
+
+        // Update viewer count on all cards
+        document.querySelectorAll(".viewer-badge-text").forEach(el => {
+          el.textContent = `${currentViewerCount} watching`;
+        });
+
+        const activeBroadcasterIds = new Set(data.broadcasters.map(b => b.peerId));
+
+        // Connect viewers to active broadcasters
+        data.broadcasters.forEach(b => {
+          if (b.peerId !== myPeerId && !activeCalls[b.peerId]) {
+            // Viewers/Peers initiate call to receive video feed
+            const call = peer.call(b.peerId, localStream || undefined, {
+              metadata: { name: userName }
+            });
+
+            call.on("stream", (remoteStream) => {
+              addVideoCard(b.peerId, b.name, remoteStream, false);
+            });
+
+            call.on("close", () => {
+              removeVideoCard(b.peerId);
+            });
+
+            activeCalls[b.peerId] = call;
+          }
+        });
+
+        // Clean up broadcasters that went offline
+        Object.keys(activeCalls).forEach(id => {
+          if (!activeBroadcasterIds.has(id)) {
+            removeVideoCard(id);
+          }
+        });
+
+      } catch (err) {
+        console.error("Sync error:", err);
+      }
+    }
+
+    // Render video cards
+    function addVideoCard(id, name, stream, isMuted) {
+      document.getElementById("emptyState").style.display = "none";
       if (document.getElementById("card-" + id)) return;
 
       const grid = document.getElementById("grid");
@@ -354,42 +421,60 @@
       card.className = "video-card";
       card.id = "card-" + id;
 
+      card.innerHTML = `
+        <div class="video-box" id="box-${id}">
+          <div class="video-overlay">
+            <span class="badge-name">${name}</span>
+            <span class="badge-click">Full Screen + Sound</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span style="color: #ef4444; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+            ● LIVE
+          </span>
+          <div class="viewer-count">
+            👁 <span class="viewer-badge-text">${currentViewerCount} watching</span>
+          </div>
+        </div>
+      `;
+
       const video = document.createElement("video");
       video.srcObject = stream;
       video.autoplay = true;
       video.playsInline = true;
-      video.muted = isMuted;
+      video.muted = isMuted; // Grid videos start muted to prevent audio overlapping
 
-      card.appendChild(video);
+      const box = card.querySelector(`#box-${id}`);
+      box.prepend(video);
 
-      const overlay = document.createElement("div");
-      overlay.className = "video-overlay";
-      overlay.innerHTML = `
-        <span class="badge-name">${label}</span>
-        <span class="badge-click">Full View</span>
-      `;
-      card.appendChild(overlay);
+      // Clicking opens the fullscreen player with audio
+      box.onclick = () => openFullscreen(name, stream);
 
-      card.onclick = () => openFullscreen(label, stream);
       grid.appendChild(card);
     }
 
-    function removeVideoStream(id) {
+    function removeVideoCard(id) {
       const card = document.getElementById("card-" + id);
       if (card) card.remove();
-      if (peers[id]) {
-        peers[id].close();
-        delete peers[id];
+      if (activeCalls[id]) {
+        activeCalls[id].close();
+        delete activeCalls[id];
+      }
+
+      // Check if grid is now empty
+      const remainingCards = document.querySelectorAll(".video-card");
+      if (remainingCards.length === 0) {
+        document.getElementById("emptyState").style.display = "block";
       }
     }
 
-    // Fullscreen audio and video view
-    function openFullscreen(title, stream) {
+    // Fullscreen and Sound Controls
+    function openFullscreen(name, stream) {
       const modal = document.getElementById("fullscreenModal");
       const modalVideo = document.getElementById("modalVideo");
-      document.getElementById("modalTitle").textContent = title;
+      document.getElementById("modalTitle").textContent = name;
       modalVideo.srcObject = stream;
-      modalVideo.muted = false; // Turn on audio
+      modalVideo.muted = false; // Unmute sound in fullscreen
       modal.classList.add("active");
     }
 
@@ -424,6 +509,16 @@
         document.getElementById("toggleMicBtn").textContent = audioTrack.enabled ? "Mute Mic" : "Unmute Mic";
       }
     }
+
+    // Clean exit
+    window.addEventListener("beforeunload", () => {
+      if (myPeerId) {
+        navigator.sendBeacon(SCRIPT_URL, JSON.stringify({
+          action: "leave",
+          peerId: myPeerId
+        }));
+      }
+    });
   </script>
 </body>
 </html>
