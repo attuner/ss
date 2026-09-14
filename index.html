@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Live Screen Viewer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 20px;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #334155;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    input {
+      padding: 8px 12px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #fff;
+      border-radius: 6px;
+    }
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-start {
+      background: #22c55e;
+      color: #022c22;
+    }
+    .btn-stop {
+      background: #ef4444;
+      color: #fff;
+    }
+    .btn-start:disabled, .btn-stop:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: #1e293b;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+    }
+    .card-header {
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+      background: #0f172a;
+    }
+    .card-img-container {
+      width: 100%;
+      height: 200px;
+      background: #020617;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    video {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h2>Peer Live Screen Monitor</h2>
+    <div class="controls">
+      <input type="text" id="username" placeholder="Enter Your Name" />
+      <button id="startBtn" class="btn-start" onclick="startSharing()">Start Sharing</button>
+      <button id="stopBtn" class="btn-stop" onclick="stopSharing()" disabled>Stop</button>
+    </div>
+  </header>
+
+  <div class="grid" id="screensContainer"></div>
+
+  <!-- Hidden elements for capture -->
+  <video id="captureVideo" autoplay playsinline></video>
+  <canvas id="captureCanvas" style="display:none;"></canvas>
+
+  <script>
+    // Paste your Google Apps Script Web App URL below
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxB-xsqymTmcVU7tqiitoD47zkN0j-5qHmMwxKoOGTdTdWdLcabGg-VB6-H-g9ENYncRg/exec";
+
+    let localStream = null;
+    let uploadInterval = null;
+    let fetchInterval = null;
+    let myUserId = "User_" + Math.floor(Math.random() * 10000);
+
+    document.getElementById("username").value = myUserId;
+
+    async function startSharing() {
+      const nameInput = document.getElementById("username").value.trim();
+      if (nameInput) myUserId = nameInput;
+
+      try {
+        localStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: 5 }
+        });
+
+        const video = document.getElementById("captureVideo");
+        video.srcObject = localStream;
+
+        document.getElementById("startBtn").disabled = true;
+        document.getElementById("stopBtn").disabled = false;
+        document.getElementById("username").disabled = true;
+
+        // Automatically clean up if the user stops sharing via browser bar
+        localStream.getVideoTracks()[0].onended = stopSharing;
+
+        // Send screen capture every 4 seconds
+        uploadInterval = setInterval(captureAndSend, 4000);
+      } catch (err) {
+        console.error("Error accessing display media:", err);
+        alert("Could not access screen sharing: " + err.message);
+      }
+    }
+
+    function stopSharing() {
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      clearInterval(uploadInterval);
+      document.getElementById("startBtn").disabled = false;
+      document.getElementById("stopBtn").disabled = true;
+      document.getElementById("username").disabled = false;
+    }
+
+    async function captureAndSend() {
+      const video = document.getElementById("captureVideo");
+      const canvas = document.getElementById("captureCanvas");
+
+      if (!video.videoWidth || !video.videoHeight) return;
+
+      // Downscale frame to 640px width for fast network transport
+      const scale = 640 / video.videoWidth;
+      canvas.width = 640;
+      canvas.height = video.videoHeight * scale;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Low-medium JPEG compression to keep payload small
+      const base64Data = canvas.toDataURL("image/jpeg", 0.4);
+
+      try {
+        await fetch(SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({
+            userId: myUserId,
+            image: base64Data
+          })
+        });
+      } catch (e) {
+        console.error("Failed to upload frame:", e);
+      }
+    }
+
+    async function fetchScreens() {
+      try {
+        const res = await fetch(SCRIPT_URL);
+        const data = await res.json();
+        renderScreens(data);
+      } catch (err) {
+        console.error("Failed to fetch screens:", err);
+      }
+    }
+
+    function renderScreens(users) {
+      const container = document.getElementById("screensContainer");
+      container.innerHTML = "";
+
+      const userKeys = Object.keys(users);
+      if (userKeys.length === 0) {
+        container.innerHTML = `<p style="color: #64748b;">No active screen shares right now.</p>`;
+        return;
+      }
+
+      userKeys.forEach(id => {
+        const item = users[id];
+        const isSelf = id === myUserId;
+
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="card-header">
+            <span>${id} ${isSelf ? "(You)" : ""}</span>
+            <span style="color: #22c55e;">● Live</span>
+          </div>
+          <div class="card-img-container">
+            <img src="${item.image}" alt="${id}'s screen" />
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Poll for other users' screens every 4 seconds
+    fetchScreens();
+    setInterval(fetchScreens, 4000);
+  </script>
+</body>
+</html>
