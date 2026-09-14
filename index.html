@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Live Camera Hub</title>
+  <title>YouTube Live Hub</title>
 
   <!-- PWA & Mobile Configuration -->
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#0b0f17" />
+  <meta name="theme-color" content="#0f0f0f" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="LiveHub" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="YouTube Live" />
   <link rel="icon" type="image/svg+xml" href="icon-192.svg" />
   <link rel="apple-touch-icon" href="icon-192.svg" />
 
@@ -23,18 +23,18 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: "Roboto", "YouTube Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       -webkit-tap-highlight-color: transparent;
     }
 
     html {
       overscroll-behavior-y: contain;
-      background-color: #0b0f17;
+      background-color: #0f0f0f;
     }
 
     body {
-      background-color: #0b0f17;
-      color: #f8fafc;
+      background-color: #0f0f0f;
+      color: #f1f1f1;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
@@ -44,11 +44,11 @@
       padding-bottom: 40px;
     }
 
-    /* Authentication Overlay */
+    /* Auth Dialog - YouTube Style */
     #authOverlay {
       position: fixed;
       inset: 0;
-      background: rgba(11, 15, 23, 0.98);
+      background: rgba(15, 15, 15, 0.96);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -57,18 +57,37 @@
     }
 
     .auth-card {
-      background: #131d2e;
-      border: 1px solid #1e293b;
-      border-radius: 14px;
-      padding: 28px 22px;
+      background: #212121;
+      border: 1px solid #303030;
+      border-radius: 16px;
+      padding: 28px 24px;
       max-width: 380px;
       width: 100%;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.7);
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.8);
       text-align: center;
     }
 
-    .auth-card h2 { font-size: 22px; margin-bottom: 6px; }
-    .auth-card p { font-size: 13px; color: #94a3b8; margin-bottom: 18px; }
+    .auth-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: -0.5px;
+      margin-bottom: 12px;
+    }
+
+    .auth-logo svg {
+      width: 28px;
+      height: 28px;
+      fill: #ff0000;
+    }
+
+    .auth-card p {
+      font-size: 13px;
+      color: #aaaaaa;
+      margin-bottom: 20px;
+    }
 
     .field {
       display: flex;
@@ -78,65 +97,110 @@
       margin-bottom: 14px;
     }
 
-    .field label { font-size: 12px; color: #cbd5e1; font-weight: 600; }
+    .field label {
+      font-size: 12px;
+      color: #aaaaaa;
+      font-weight: 500;
+    }
+
     .field input {
-      padding: 10px 12px;
-      background: #1e293b;
-      border: 1px solid #334155;
+      padding: 10px 14px;
+      background: #121212;
+      border: 1px solid #383838;
       color: #fff;
       border-radius: 8px;
       font-size: 14px;
       outline: none;
     }
-    .field input:focus { border-color: #38bdf8; }
 
-    .auth-error { font-size: 12px; color: #ef4444; margin-bottom: 12px; min-height: 16px; }
+    .field input:focus {
+      border-color: #3ea6ff;
+    }
+
+    .auth-error {
+      font-size: 12px;
+      color: #ff4e45;
+      margin-bottom: 12px;
+      min-height: 16px;
+    }
 
     .btn-auth {
       width: 100%;
       padding: 11px;
-      background: #38bdf8;
-      color: #020617;
-      font-weight: 700;
+      background: #cc0000;
+      color: #fff;
+      font-weight: 600;
       border: none;
-      border-radius: 8px;
+      border-radius: 20px;
       cursor: pointer;
       font-size: 14px;
     }
 
-    /* Responsive Sticky Header */
+    .btn-auth:hover {
+      background: #ff0000;
+    }
+
+    /* YouTube Sticky App Header */
     header {
-      padding: 12px 16px;
-      background: #111827;
-      border-bottom: 1px solid #1f2937;
+      padding: 8px 16px;
+      background: #0f0f0f;
+      border-bottom: 1px solid #272727;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 12px;
       position: sticky;
       top: 0;
       z-index: 100;
     }
 
-    .brand { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; }
-    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; flex-shrink: 0; }
-    .status-dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.6px;
+    }
+
+    .brand svg {
+      width: 28px;
+      height: 20px;
+      fill: #ff0000;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #717171;
+      margin-left: 2px;
+    }
+
+    .status-dot.online {
+      background: #2ba640;
+      box-shadow: 0 0 6px #2ba640;
+    }
 
     .search-box {
       flex: 1 1 200px;
-      max-width: 320px;
+      max-width: 360px;
     }
 
     .search-box input {
       width: 100%;
-      padding: 7px 12px;
-      background: #1e293b;
-      border: 1px solid #334155;
-      color: #fff;
-      border-radius: 20px;
+      padding: 8px 16px;
+      background: #121212;
+      border: 1px solid #303030;
+      color: #f1f1f1;
+      border-radius: 24px;
       font-size: 13px;
       outline: none;
+    }
+
+    .search-box input:focus {
+      border-color: #3ea6ff;
     }
 
     .controls {
@@ -147,42 +211,83 @@
     }
 
     .user-tag {
-      background: #1e293b;
-      padding: 6px 10px;
-      border-radius: 6px;
+      background: #272727;
+      padding: 6px 12px;
+      border-radius: 18px;
       font-size: 12px;
-      color: #38bdf8;
-      font-weight: 600;
+      color: #f1f1f1;
+      font-weight: 500;
     }
 
+    /* YouTube Pill Buttons */
     button {
-      padding: 7px 12px;
+      padding: 6px 14px;
       border: none;
-      border-radius: 6px;
-      font-weight: 600;
+      border-radius: 18px;
+      font-weight: 500;
       font-size: 13px;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease;
     }
 
-    .btn-live { background: #ef4444; color: #fff; }
-    .btn-stop { background: #475569; color: #f8fafc; }
-    .btn-refresh { background: #0284c7; color: #fff; display: flex; align-items: center; gap: 4px; }
-    .btn-logout { background: #334155; color: #fca5a5; }
-    .btn-media { background: #1e293b; color: #f8fafc; border: 1px solid #334155; }
+    .btn-live {
+      background: #cc0000;
+      color: #fff;
+    }
 
-    /* Main Container & Fluid Grid */
+    .btn-live:hover {
+      background: #ff0000;
+    }
+
+    .btn-stop {
+      background: #3f3f3f;
+      color: #fff;
+    }
+
+    .btn-refresh {
+      background: #272727;
+      color: #f1f1f1;
+    }
+
+    .btn-refresh:hover {
+      background: #383838;
+    }
+
+    .btn-logout {
+      background: #272727;
+      color: #ff4e45;
+    }
+
+    .btn-logout:hover {
+      background: #383838;
+    }
+
+    .btn-media {
+      background: #272727;
+      color: #f1f1f1;
+    }
+
+    .btn-media:hover {
+      background: #383838;
+    }
+
+    /* Main Container & Video Grid (Portrait 9:16 aspect cards) */
     main {
       flex: 1;
       padding: 16px;
-      max-width: 1600px;
+      max-width: 1400px;
       width: 100%;
       margin: 0 auto;
     }
 
     .video-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+      justify-content: center;
     }
 
     @media (max-width: 480px) {
@@ -196,23 +301,31 @@
       }
     }
 
+    /* Card Layout - YouTube Shorts / Live Stream Style */
     .video-card {
-      background: #131d2e;
+      background: #181818;
       border-radius: 12px;
       overflow: hidden;
-      border: 1px solid #1e293b;
+      border: 1px solid #272727;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     }
 
-    .video-card.hidden { display: none !important; }
+    .video-card.hidden {
+      display: none !important;
+    }
 
+    /* Broadcast in Portrait Format (9:16) */
     .video-box {
       position: relative;
-      aspect-ratio: 16 / 9;
-      background: #020617;
+      aspect-ratio: 9 / 16;
+      max-height: 480px;
+      background: #000;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .video-box video {
@@ -233,30 +346,41 @@
     }
 
     .badge-name {
-      background: rgba(0, 0, 0, 0.75);
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 12px;
-      backdrop-filter: blur(4px);
-    }
-
-    .badge-fullscreen {
-      background: rgba(56, 189, 248, 0.9);
-      color: #020617;
+      background: rgba(0, 0, 0, 0.7);
       padding: 4px 8px;
       border-radius: 6px;
       font-size: 11px;
-      font-weight: 700;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    /* Card Footer (Viewers + Score + Buttons) */
+    .live-badge {
+      background: #cc0000;
+      color: #fff;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+    }
+
+    .badge-fullscreen {
+      background: rgba(33, 33, 33, 0.85);
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+    }
+
+    /* Card Footer */
     .card-footer {
-      padding: 10px 14px;
-      background: #0d1524;
+      padding: 10px 12px;
+      background: #1f1f1f;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-top: 1px solid #1e293b;
+      border-top: 1px solid #2a2a2a;
       flex-wrap: wrap;
       gap: 8px;
     }
@@ -268,47 +392,58 @@
     }
 
     .viewer-tag {
-      font-size: 13px;
-      color: #38bdf8;
-      font-weight: 600;
+      font-size: 12px;
+      color: #aaaaaa;
+      font-weight: 500;
       display: flex;
       align-items: center;
       gap: 4px;
     }
 
     .score-tag {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
-      color: #facc15;
+      color: #f1f1f1;
       display: flex;
       align-items: center;
       gap: 4px;
     }
 
-    .point-buttons { display: flex; gap: 6px; }
+    /* YouTube Pill Action Buttons (+1 / -1) */
+    .point-buttons {
+      display: flex;
+      background: #272727;
+      border-radius: 18px;
+      overflow: hidden;
+    }
 
     .btn-point {
-      padding: 5px 10px;
-      border-radius: 6px;
+      padding: 5px 12px;
+      border-radius: 0;
+      background: transparent;
+      color: #f1f1f1;
       font-size: 12px;
-      font-weight: 700;
+      font-weight: 600;
       cursor: pointer;
       user-select: none;
     }
 
-    .btn-point-plus { background: #065f46; color: #34d399; }
-    .btn-point-plus:active { transform: scale(0.92); }
-    .btn-point-minus { background: #7f1d1d; color: #f87171; }
-    .btn-point-minus:active { transform: scale(0.92); }
+    .btn-point:hover {
+      background: #383838;
+    }
 
-    /* Comment Section */
+    .btn-point-plus {
+      border-right: 1px solid #383838;
+    }
+
+    /* Live Comments Container */
     .comment-section {
-      background: #090d16;
-      border-top: 1px solid #1e293b;
-      padding: 10px 14px;
+      background: #121212;
+      border-top: 1px solid #272727;
+      padding: 8px 12px;
       display: flex;
       flex-direction: column;
-      height: 155px;
+      height: 140px;
     }
 
     .comment-list {
@@ -316,77 +451,133 @@
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 5px;
       font-size: 12px;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       -webkit-overflow-scrolling: touch;
     }
 
-    .comment-item { line-height: 1.4; word-break: break-word; }
-    .comment-author { font-weight: 600; color: #38bdf8; }
+    .comment-item {
+      line-height: 1.35;
+      word-break: break-word;
+    }
 
-    .comment-form { display: flex; gap: 6px; }
+    .comment-author {
+      font-weight: 500;
+      color: #aaaaaa;
+      margin-right: 4px;
+    }
+
+    .comment-form {
+      display: flex;
+      gap: 6px;
+    }
 
     .comment-form input {
       flex: 1;
-      padding: 6px 10px;
-      background: #1e293b;
-      border: 1px solid #334155;
+      padding: 6px 12px;
+      background: #272727;
+      border: 1px solid transparent;
       color: #fff;
-      border-radius: 6px;
+      border-radius: 16px;
       font-size: 12px;
       outline: none;
     }
 
-    .comment-form button {
-      background: #38bdf8;
-      color: #020617;
-      padding: 6px 12px;
-      font-size: 12px;
+    .comment-form input:focus {
+      border-color: #3ea6ff;
     }
 
-    /* Fullscreen Modal Housing Entire Video Box */
+    .comment-form button {
+      background: #3ea6ff;
+      color: #0f0f0f;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 16px;
+    }
+
+    /* Fullscreen Modal with Rotation Support */
     #fullscreenModal {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.96);
+      background: #000;
       display: none;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 1000;
-      padding: 16px;
+      padding: 12px;
     }
 
-    #fullscreenModal.active { display: flex; }
+    #fullscreenModal.active {
+      display: flex;
+    }
 
     #fullscreenContainer {
       width: 100%;
-      max-width: 95vw;
-      max-height: 82vh;
+      height: 85vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      transition: transform 0.3s ease;
     }
 
     #fullscreenContainer .video-box {
-      width: 100%;
-      height: 100%;
-      max-height: 82vh;
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 0 35px rgba(0,0,0,0.9);
+      max-height: 85vh;
+      width: auto;
+      border-radius: 0;
       cursor: default;
     }
 
-    .modal-controls {
-      margin-top: 14px;
-      display: flex;
-      gap: 12px;
-      align-items: center;
+    /* Landscape Toggle Class */
+    #fullscreenContainer.landscape-mode {
+      transform: rotate(90deg);
+      width: 85vh;
+      height: 95vw;
     }
-    .btn-close { background: #ef4444; color: #fff; }
-    .btn-mute { background: #334155; color: #fff; }
+
+    #fullscreenContainer.landscape-mode .video-box {
+      aspect-ratio: 16 / 9;
+      max-height: 95vw;
+      width: 100%;
+    }
+
+    .modal-controls {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn-rotate {
+      background: #272727;
+      color: #fff;
+    }
+
+    .btn-rotate:hover {
+      background: #383838;
+    }
+
+    .btn-close {
+      background: #cc0000;
+      color: #fff;
+    }
+
+    .btn-close:hover {
+      background: #ff0000;
+    }
+
+    .btn-mute {
+      background: #272727;
+      color: #fff;
+    }
+
+    .btn-mute:hover {
+      background: #383838;
+    }
   </style>
 </head>
 <body>
@@ -394,8 +585,11 @@
   <!-- Auth Dialog -->
   <div id="authOverlay">
     <div class="auth-card">
-      <h2>Welcome to Live Hub</h2>
-      <p>Enter your username and a 6-digit PIN.</p>
+      <div class="auth-logo">
+        <svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        <span>Live</span>
+      </div>
+      <p>Enter your username and a 6-digit PIN to join.</p>
       
       <div class="field">
         <label>Username</label>
@@ -408,26 +602,27 @@
       </div>
 
       <div class="auth-error" id="authError"></div>
-      <button class="btn-auth" onclick="handleAuth()">Enter Hub</button>
+      <button class="btn-auth" onclick="handleAuth()">Enter Live Hub</button>
     </div>
   </div>
 
   <!-- Header -->
   <header>
     <div class="brand">
+      <svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+      <span>Live</span>
       <div id="statusDot" class="status-dot"></div>
-      <span>Live Hub</span>
     </div>
 
     <div class="search-box">
-      <input type="text" id="streamSearch" placeholder="🔍 Search streamer..." oninput="filterStreams()" />
+      <input type="text" id="streamSearch" placeholder="Search streamers..." oninput="filterStreams()" />
     </div>
 
     <div class="controls">
-      <button class="btn-refresh" onclick="manualRefresh()" title="Scan for latest cameras">🔄 Refresh</button>
+      <button class="btn-refresh" onclick="manualRefresh()" title="Scan for latest streams">🔄 Refresh</button>
       <span class="user-tag" id="userBadge">Guest</span>
       <button id="goLiveBtn" class="btn-live" onclick="toggleBroadcasting()">Go Live</button>
-      <button id="switchCamBtn" class="btn-media" onclick="switchCamera()" style="display:none;" title="Switch front/back camera">🔄 Flip Cam</button>
+      <button id="switchCamBtn" class="btn-media" onclick="switchCamera()" style="display:none;" title="Flip between front and back camera">🔄 Flip Cam</button>
       <button id="toggleCamBtn" class="btn-media" onclick="toggleCamera()" style="display:none;">Cam Off</button>
       <button id="toggleMicBtn" class="btn-media" onclick="toggleMic()" style="display:none;">Mute Mic</button>
       <button class="btn-logout" onclick="handleLogout()">Logout</button>
@@ -436,16 +631,17 @@
 
   <main>
     <div class="video-grid" id="grid">
-      <div id="emptyNotice" style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: #64748b;">
+      <div id="emptyNotice" style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: #717171;">
         Connecting to active online cameras...
       </div>
     </div>
   </main>
 
-  <!-- Fullscreen Modal View Containing Entire Video-Box -->
+  <!-- Fullscreen Modal View with Rotation Toggle -->
   <div id="fullscreenModal">
     <div id="fullscreenContainer"></div>
     <div class="modal-controls">
+      <button id="rotateBtn" class="btn-rotate" onclick="toggleOrientation()">🔄 Rotate</button>
       <button id="modalMuteBtn" class="btn-mute" onclick="toggleModalAudio()">Mute</button>
       <button class="btn-close" onclick="closeFullscreen()">Exit Fullscreen</button>
     </div>
@@ -462,8 +658,9 @@
     let isBroadcaster = false;
     let outgoingCalls = {};
     let syncTimer = null;
-    let currentFacingMode = "user"; // Camera mode tracker
-    let fullscreenBoxHolder = null; // References the active fullscreen video box
+    let currentFacingMode = "user"; // Camera mode
+    let fullscreenBoxHolder = null;
+    let isLandscape = false;
 
     // Register PWA Service Worker
     if ("serviceWorker" in navigator) {
@@ -539,7 +736,7 @@
       outgoingCalls = {};
 
       document.getElementById("grid").innerHTML = `
-        <div id="emptyNotice" style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: #64748b;">
+        <div id="emptyNotice" style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: #717171;">
           Connecting to active online cameras...
         </div>
       `;
@@ -586,6 +783,7 @@
       });
     }
 
+    // 4) Portrait format broadcast constraints (aspect ratio 9/16, width: 720, height: 1280)
     async function toggleBroadcasting() {
       const liveBtn = document.getElementById("goLiveBtn");
 
@@ -593,7 +791,13 @@
         try {
           currentFacingMode = "user";
           localStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: currentFacingMode, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } },
+            video: {
+              facingMode: currentFacingMode,
+              aspectRatio: { ideal: 9 / 16 },
+              width: { ideal: 720 },
+              height: { ideal: 1280 },
+              frameRate: { ideal: 24 }
+            },
             audio: true
           });
 
@@ -629,22 +833,42 @@
       }
     }
 
-    // Switch between front/user and back/environment cameras
+    // 2) Fixed flip cam on mobile devices
     async function switchCamera() {
       if (!isBroadcaster || !localStream) return;
 
+      const oldVideoTrack = localStream.getVideoTracks()[0];
+      if (oldVideoTrack) {
+        oldVideoTrack.stop(); // Must stop old track completely on mobile before requesting another camera
+      }
+
       currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
 
+      // Mobile friendly fallback constraint configuration
+      const constraints = {
+        video: {
+          facingMode: { ideal: currentFacingMode },
+          aspectRatio: { ideal: 9 / 16 },
+          width: { ideal: 720 },
+          height: { ideal: 1280 }
+        },
+        audio: false
+      };
+
       try {
-        const newStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: currentFacingMode, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } },
-          audio: false
-        });
+        let newStream;
+        try {
+          newStream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (err) {
+          // Fallback if ideal fails on certain mobile OS browsers
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: currentFacingMode }
+          });
+        }
 
         const newVideoTrack = newStream.getVideoTracks()[0];
-        const oldVideoTrack = localStream.getVideoTracks()[0];
 
-        // Replace track in peer connections
+        // Replace track across all WebRTC peer connections
         Object.values(outgoingCalls).forEach(call => {
           if (call.peerConnection) {
             const senders = call.peerConnection.getSenders();
@@ -655,15 +879,17 @@
           }
         });
 
-        // Replace track locally
-        localStream.removeTrack(oldVideoTrack);
-        oldVideoTrack.stop();
+        // Replace track in localStream instance
+        if (oldVideoTrack) {
+          localStream.removeTrack(oldVideoTrack);
+        }
         localStream.addTrack(newVideoTrack);
 
         const localVid = document.querySelector("#box-local video");
         if (localVid) localVid.srcObject = localStream;
       } catch (err) {
-        console.warn("Unable to switch camera:", err);
+        console.error("Camera flip error on mobile:", err);
+        alert("Camera switch failed: " + err.message);
       }
     }
 
@@ -750,8 +976,11 @@
       card.innerHTML = `
         <div class="video-box" id="box-${id}">
           <div class="video-overlay">
-            <span class="badge-name">${name}</span>
-            <span class="badge-fullscreen">Full View + Sound</span>
+            <span class="badge-name">
+              <span class="live-badge">LIVE</span>
+              ${name}
+            </span>
+            <span class="badge-fullscreen">Full Screen</span>
           </div>
         </div>
         <div class="card-footer">
@@ -767,7 +996,7 @@
         <div class="comment-section">
           <div class="comment-list" id="comments-${id}"></div>
           <div class="comment-form">
-            <input type="text" id="input-comment-${id}" placeholder="Type a comment..." onkeydown="if(event.key==='Enter') sendComment('${id}')" />
+            <input type="text" id="input-comment-${id}" placeholder="Chat publicly..." onkeydown="if(event.key==='Enter') sendComment('${id}')" />
             <button onclick="sendComment('${id}')">Send</button>
           </div>
         </div>
@@ -797,7 +1026,8 @@
       if (cEl && comments) {
         cEl.innerHTML = comments.map(c => `
           <div class="comment-item">
-            <span class="comment-author">${escapeHtml(c.user)}:</span> ${escapeHtml(c.text)}
+            <span class="comment-author">${escapeHtml(c.user)}</span>
+            <span>${escapeHtml(c.text)}</span>
           </div>
         `).join("");
         cEl.scrollTop = cEl.scrollHeight;
@@ -875,37 +1105,69 @@
       });
     }
 
-    // View the entire video-box in fullscreen with mute toggle and exit option
+    // 1) Fullscreen video viewing with Portrait / Landscape rotation toggle
     function openFullscreen(videoBox) {
       const modal = document.getElementById("fullscreenModal");
       const container = document.getElementById("fullscreenContainer");
       fullscreenBoxHolder = videoBox;
 
-      // Move the entire video-box into modal
+      // Reset orientation to portrait by default
+      isLandscape = false;
+      container.classList.remove("landscape-mode");
+      document.getElementById("rotateBtn").textContent = "🔄 Landscape";
+
       container.appendChild(videoBox);
 
       const video = videoBox.querySelector("video");
       if (video) {
-        video.muted = false; // Unmute sound in fullscreen
+        video.muted = false;
         document.getElementById("modalMuteBtn").textContent = "Mute";
       }
 
       modal.classList.add("active");
     }
 
+    function toggleOrientation() {
+      const container = document.getElementById("fullscreenContainer");
+      const rotateBtn = document.getElementById("rotateBtn");
+      isLandscape = !isLandscape;
+
+      if (isLandscape) {
+        container.classList.add("landscape-mode");
+        rotateBtn.textContent = "🔄 Portrait";
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock("landscape").catch(() => {});
+        }
+      } else {
+        container.classList.remove("landscape-mode");
+        rotateBtn.textContent = "🔄 Landscape";
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock("portrait").catch(() => {});
+        }
+      }
+    }
+
     function closeFullscreen() {
       const modal = document.getElementById("fullscreenModal");
+      const container = document.getElementById("fullscreenContainer");
+
+      if (screen.orientation && screen.orientation.unlock) {
+        try { screen.orientation.unlock(); } catch (e) {}
+      }
+
+      container.classList.remove("landscape-mode");
+      isLandscape = false;
+
       if (fullscreenBoxHolder) {
         const cardId = fullscreenBoxHolder.id.replace("box-", "card-");
         const parentCard = document.getElementById(cardId);
         if (parentCard) {
-          // Restore the video-box back to its original card layout
           parentCard.prepend(fullscreenBoxHolder);
         }
 
         const video = fullscreenBoxHolder.querySelector("video");
         if (video) {
-          video.muted = true; // Mute again on grid preview
+          video.muted = true;
         }
         fullscreenBoxHolder = null;
       }
