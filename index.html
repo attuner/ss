@@ -2,23 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Live Camera Hub</title>
-  
-  <!-- PWA Meta Tags -->
+
+  <!-- PWA & Mobile Configuration -->
+  <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#0b0f17" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Live Hub" />
-  
-  <!-- Inline SVG PWA Icon & Apple Touch Icon -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f172a'/><path d='M30 36h40a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H30a4 4 0 0 1-4-4V40a4 4 0 0 1 4-4z' fill='%2338bdf8'/><polygon points='76,44 88,36 88,64 76,56' fill='%23ef4444'/><circle cx='50' cy='50' r='6' fill='%230f172a'/></svg>" />
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f172a'/><path d='M30 36h40a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H30a4 4 0 0 1-4-4V40a4 4 0 0 1 4-4z' fill='%2338bdf8'/><polygon points='76,44 88,36 88,64 76,56' fill='%23ef4444'/><circle cx='50' cy='50' r='6' fill='%230f172a'/></svg>" />
+  <meta name="apple-mobile-web-app-title" content="LiveHub" />
+  <link rel="icon" type="image/svg+xml" href="icon-192.svg" />
+  <link rel="apple-touch-icon" href="icon-192.svg" />
 
-  <!-- Inline Web App Manifest -->
-  <link rel="manifest" href='data:application/manifest+json,{"name":"Live Camera Hub","short_name":"LiveHub","start_url":".","display":"standalone","background_color":"%230b0f17","theme_color":"%230b0f17","icons":[{"src":"data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><rect width=%27100%27 height=%27100%27 rx=%2722%27 fill=%27%230f172a%27/><path d=%27M30 36h40a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H30a4 4 0 0 1-4-4V40a4 4 0 0 1 4-4z%27 fill=%27%2338bdf8%27/><polygon points=%2776,44 88,36 88,64 76,56%27 fill=%27%23ef4444%27/><circle cx=%2750%27 cy=%2750%27 r=%276%27 fill=%27%230f172a%27/></svg>","sizes":"512x512","type":"image/svg+xml"}]}' />
-
-  <!-- WebRTC Library -->
+  <!-- WebRTC -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
   <style>
@@ -30,18 +27,25 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* Block Pull Down to Refresh on mobile */
-    html, body {
+    /* Fixed mobile scroll: natural flow + disable pull-to-refresh without locking body */
+    html {
       overscroll-behavior-y: contain;
-      overflow-x: hidden;
+      background-color: #0b0f17;
+    }
+
+    body {
       background-color: #0b0f17;
       color: #f8fafc;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 40px;
     }
 
-    /* Login/Register Overlay */
+    /* Authentication Overlay */
     #authOverlay {
       position: fixed;
       inset: 0;
@@ -52,19 +56,29 @@
       z-index: 2000;
       padding: 16px;
     }
+
     .auth-card {
       background: #131d2e;
       border: 1px solid #1e293b;
       border-radius: 14px;
-      padding: 30px 24px;
+      padding: 28px 22px;
       max-width: 380px;
       width: 100%;
       box-shadow: 0 10px 25px rgba(0,0,0,0.7);
       text-align: center;
     }
+
     .auth-card h2 { font-size: 22px; margin-bottom: 6px; }
-    .auth-card p { font-size: 13px; color: #94a3b8; margin-bottom: 20px; }
-    .field { display: flex; flex-direction: column; gap: 6px; text-align: left; margin-bottom: 14px; }
+    .auth-card p { font-size: 13px; color: #94a3b8; margin-bottom: 18px; }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: left;
+      margin-bottom: 14px;
+    }
+
     .field label { font-size: 12px; color: #cbd5e1; font-weight: 600; }
     .field input {
       padding: 10px 12px;
@@ -76,7 +90,9 @@
       outline: none;
     }
     .field input:focus { border-color: #38bdf8; }
+
     .auth-error { font-size: 12px; color: #ef4444; margin-bottom: 12px; min-height: 16px; }
+
     .btn-auth {
       width: 100%;
       padding: 11px;
@@ -89,9 +105,9 @@
       font-size: 14px;
     }
 
-    /* Header Nav */
+    /* Responsive Sticky Header */
     header {
-      padding: 10px 16px;
+      padding: 12px 16px;
       background: #111827;
       border-bottom: 1px solid #1f2937;
       display: flex;
@@ -103,11 +119,16 @@
       top: 0;
       z-index: 100;
     }
-    .brand { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; }
-    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
+
+    .brand { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; flex-shrink: 0; }
     .status-dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
 
-    .search-box { flex: 1; min-width: 160px; max-width: 320px; }
+    .search-box {
+      flex: 1 1 200px;
+      max-width: 320px;
+    }
+
     .search-box input {
       width: 100%;
       padding: 7px 12px;
@@ -119,20 +140,61 @@
       outline: none;
     }
 
-    .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .user-tag { background: #1e293b; padding: 6px 10px; border-radius: 6px; font-size: 12px; color: #38bdf8; font-weight: 600; }
-    button { padding: 7px 12px; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; }
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .user-tag {
+      background: #1e293b;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #38bdf8;
+      font-weight: 600;
+    }
+
+    button {
+      padding: 7px 12px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
     .btn-live { background: #ef4444; color: #fff; }
     .btn-stop { background: #475569; color: #f8fafc; }
     .btn-refresh { background: #0284c7; color: #fff; display: flex; align-items: center; gap: 4px; }
     .btn-logout { background: #334155; color: #fca5a5; }
     .btn-media { background: #1e293b; color: #f8fafc; border: 1px solid #334155; }
 
-    main { flex: 1; padding: 16px; }
+    /* Main Container & Fluid Grid */
+    main {
+      flex: 1;
+      padding: 16px;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
     .video-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       gap: 16px;
+    }
+
+    @media (max-width: 480px) {
+      .video-grid {
+        grid-template-columns: 1fr;
+      }
+      .search-box {
+        max-width: 100%;
+        order: 3;
+        flex-basis: 100%;
+      }
     }
 
     .video-card {
@@ -144,6 +206,7 @@
       flex-direction: column;
       box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
     }
+
     .video-card.hidden { display: none !important; }
 
     .video-box {
@@ -152,7 +215,14 @@
       background: #020617;
       cursor: pointer;
     }
-    .video-box video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .video-box video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
     .video-overlay {
       position: absolute;
       top: 8px;
@@ -162,10 +232,25 @@
       justify-content: space-between;
       pointer-events: none;
     }
-    .badge-name { background: rgba(0, 0, 0, 0.75); padding: 4px 8px; border-radius: 6px; font-size: 12px; }
-    .badge-fullscreen { background: rgba(56, 189, 248, 0.9); color: #020617; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
 
-    /* Score & Point Control Bar */
+    .badge-name {
+      background: rgba(0, 0, 0, 0.75);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      backdrop-filter: blur(4px);
+    }
+
+    .badge-fullscreen {
+      background: rgba(56, 189, 248, 0.9);
+      color: #020617;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Card Footer (Viewers + Score + Buttons) */
     .card-footer {
       padding: 10px 14px;
       background: #0d1524;
@@ -173,31 +258,51 @@
       justify-content: space-between;
       align-items: center;
       border-top: 1px solid #1e293b;
+      flex-wrap: wrap;
+      gap: 8px;
     }
-    .score-badge {
-      font-size: 13px;
-      font-weight: 700;
-      color: #38bdf8;
+
+    .meta-metrics {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 12px;
     }
-    .point-buttons { display: flex; gap: 6px; }
-    .btn-point {
-      padding: 6px 12px;
-      border-radius: 6px;
+
+    .viewer-tag {
+      font-size: 13px;
+      color: #38bdf8;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .score-tag {
       font-size: 13px;
       font-weight: 700;
+      color: #facc15;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .point-buttons { display: flex; gap: 6px; }
+
+    .btn-point {
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
       cursor: pointer;
-      border: 1px solid transparent;
       user-select: none;
     }
-    .btn-point-plus { background: #065f46; color: #34d399; border-color: #059669; }
+
+    .btn-point-plus { background: #065f46; color: #34d399; }
     .btn-point-plus:active { transform: scale(0.92); }
-    .btn-point-minus { background: #7f1d1d; color: #f87171; border-color: #dc2626; }
+    .btn-point-minus { background: #7f1d1d; color: #f87171; }
     .btn-point-minus:active { transform: scale(0.92); }
 
-    /* Live Comment Box */
+    /* Comment Section */
     .comment-section {
       background: #090d16;
       border-top: 1px solid #1e293b;
@@ -206,6 +311,7 @@
       flex-direction: column;
       height: 155px;
     }
+
     .comment-list {
       flex: 1;
       overflow-y: auto;
@@ -214,13 +320,14 @@
       gap: 6px;
       font-size: 12px;
       margin-bottom: 8px;
+      -webkit-overflow-scrolling: touch;
     }
-    .comment-list::-webkit-scrollbar { width: 4px; }
-    .comment-list::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
     .comment-item { line-height: 1.4; word-break: break-word; }
     .comment-author { font-weight: 600; color: #38bdf8; }
 
     .comment-form { display: flex; gap: 6px; }
+
     .comment-form input {
       flex: 1;
       padding: 6px 10px;
@@ -231,9 +338,15 @@
       font-size: 12px;
       outline: none;
     }
-    .comment-form button { background: #38bdf8; color: #020617; padding: 6px 12px; font-size: 12px; }
 
-    /* Fullscreen Modal */
+    .comment-form button {
+      background: #38bdf8;
+      color: #020617;
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    /* Modal */
     #fullscreenModal {
       position: fixed;
       inset: 0;
@@ -244,6 +357,7 @@
       justify-content: center;
       z-index: 1000;
     }
+
     #fullscreenModal.active { display: flex; }
     #modalVideo { max-width: 95vw; max-height: 80vh; border-radius: 8px; }
     .modal-controls { margin-top: 14px; display: flex; gap: 12px; align-items: center; }
@@ -253,11 +367,11 @@
 </head>
 <body>
 
-  <!-- Login/Register Overlay -->
+  <!-- Auth Dialog -->
   <div id="authOverlay">
     <div class="auth-card">
       <h2>Welcome to Live Hub</h2>
-      <p>Enter your username and 6-digit PIN to join.</p>
+      <p>Enter your username and a 6-digit PIN.</p>
       
       <div class="field">
         <label>Username</label>
@@ -274,7 +388,7 @@
     </div>
   </div>
 
-  <!-- Main Navigation Bar -->
+  <!-- Header -->
   <header>
     <div class="brand">
       <div id="statusDot" class="status-dot"></div>
@@ -303,7 +417,7 @@
     </div>
   </main>
 
-  <!-- Fullscreen Modal View -->
+  <!-- Fullscreen Modal -->
   <div id="fullscreenModal">
     <video id="modalVideo" autoplay playsinline></video>
     <div class="modal-controls">
@@ -314,6 +428,7 @@
   </div>
 
   <script>
+    // Paste your deployed Google Apps Script URL here:
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxB-xsqymTmcVU7tqiitoD47zkN0j-5qHmMwxKoOGTdTdWdLcabGg-VB6-H-g9ENYncRg/exec";
     const ROOM_ID = "room1";
 
@@ -325,17 +440,14 @@
     let outgoingCalls = {};
     let syncTimer = null;
 
-    // Register Service Worker dynamically for PWA compliance
+    // Register PWA Service Worker
     if ("serviceWorker" in navigator) {
-      const swCode = `
-        self.addEventListener('install', e => self.skipWaiting());
-        self.addEventListener('activate', e => self.clients.claim());
-        self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));
-      `;
-      const blob = new Blob([swCode], { type: "application/javascript" });
-      navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch((err) => console.log("SW Reg Error:", err));
+      });
     }
 
+    // Auto load session
     window.addEventListener("DOMContentLoaded", () => {
       const savedUser = localStorage.getItem("camhub_auth");
       if (savedUser) {
@@ -345,7 +457,6 @@
       }
     });
 
-    // Authentication
     async function handleAuth() {
       const name = document.getElementById("authName").value.trim();
       const pin = document.getElementById("authPin").value.trim();
@@ -384,7 +495,6 @@
       }
     }
 
-    // Logout
     async function handleLogout() {
       if (localStream) {
         localStream.getTracks().forEach(t => t.stop());
@@ -419,7 +529,6 @@
       document.getElementById("toggleMicBtn").style.display = "none";
     }
 
-    // Initialize Hub
     function initHub() {
       document.getElementById("userBadge").textContent = currentUser.name;
 
@@ -435,26 +544,22 @@
       peer.on("open", (id) => {
         myPeerId = id;
         document.getElementById("statusDot").classList.add("online");
-
         syncRegistry();
         syncTimer = setInterval(syncRegistry, 4000);
       });
 
       peer.on("call", (call) => {
         call.answer();
-
         const broadcasterName = call.metadata?.name || "Broadcaster";
         call.on("stream", (remoteStream) => {
           renderCard(call.peer, broadcasterName, remoteStream, false);
         });
-
         call.on("close", () => {
           removeCard(call.peer);
         });
       });
     }
 
-    // Toggle Camera (Broadcaster)
     async function toggleBroadcasting() {
       const liveBtn = document.getElementById("goLiveBtn");
 
@@ -495,7 +600,6 @@
       }
     }
 
-    // Manual Refresh
     function manualRefresh() {
       const btn = document.querySelector(".btn-refresh");
       btn.textContent = "Scanning...";
@@ -504,7 +608,6 @@
       });
     }
 
-    // State Synchronization Loop
     async function syncRegistry() {
       if (!myPeerId || !currentUser) return;
 
@@ -525,13 +628,12 @@
         const res = await fetch(`${SCRIPT_URL}?room=${encodeURIComponent(ROOM_ID)}`);
         const data = await res.json();
 
-        // Update meta for remote viewers and local broadcaster card
+        // Update card metadata (Viewer count beside score & comments)
         data.broadcasters.forEach(b => {
-          // If this broadcaster record matches self, update local card too
           if (b.peerId === myPeerId && isBroadcaster) {
-            updateCardMeta("local", b.score, b.comments);
+            updateCardMeta("local", data.totalAudience, b.score, b.comments);
           } else {
-            updateCardMeta(b.peerId, b.score, b.comments);
+            updateCardMeta(b.peerId, data.totalAudience, b.score, b.comments);
           }
         });
 
@@ -571,7 +673,6 @@
       }
     }
 
-    // Render Stream Tile
     function renderCard(id, name, stream, isMuted) {
       document.getElementById("emptyNotice").style.display = "none";
       if (document.getElementById("card-" + id)) return;
@@ -590,7 +691,10 @@
           </div>
         </div>
         <div class="card-footer">
-          <div class="score-badge">⭐ Score: <span id="score-${id}">0</span></div>
+          <div class="meta-metrics">
+            <div class="viewer-tag">👁 <span id="viewers-${id}">0</span></div>
+            <div class="score-tag">⭐ <span id="score-${id}">0</span></div>
+          </div>
           <div class="point-buttons">
             <button class="btn-point btn-point-plus" onclick="sendScore('${id}', 1)">+1</button>
             <button class="btn-point btn-point-minus" onclick="sendScore('${id}', -1)">-1</button>
@@ -618,11 +722,12 @@
       grid.appendChild(card);
     }
 
-    // Update Scores and Comments
-    function updateCardMeta(id, score, comments) {
+    function updateCardMeta(id, viewers, score, comments) {
+      const vEl = document.getElementById(`viewers-${id}`);
       const sEl = document.getElementById(`score-${id}`);
       const cEl = document.getElementById(`comments-${id}`);
 
+      if (vEl) vEl.textContent = viewers !== undefined ? viewers : 0;
       if (sEl) sEl.textContent = score !== undefined ? score : 0;
 
       if (cEl && comments) {
@@ -647,7 +752,6 @@
       }
     }
 
-    // Send Point (+1 or -1)
     async function sendScore(cardId, delta) {
       const targetPeerId = cardId === "local" ? myPeerId : cardId;
       const sEl = document.getElementById(`score-${cardId}`);
@@ -668,7 +772,6 @@
       });
     }
 
-    // Send Comment
     async function sendComment(cardId) {
       const targetPeerId = cardId === "local" ? myPeerId : cardId;
       const input = document.getElementById(`input-comment-${cardId}`);
@@ -691,7 +794,6 @@
       syncRegistry();
     }
 
-    // Filter by Streamer Name
     function filterStreams() {
       const query = document.getElementById("streamSearch").value.trim().toLowerCase();
       const cards = document.querySelectorAll(".video-card");
@@ -705,7 +807,6 @@
       });
     }
 
-    // Fullscreen View
     function openFullscreen(title, stream) {
       const modal = document.getElementById("fullscreenModal");
       const modalVideo = document.getElementById("modalVideo");
