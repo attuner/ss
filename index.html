@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Live Screen Viewer</title>
+  <title>Live Device & Screen Grid</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background-color: #0b0f19; color: #f1f5f9; padding: 16px; }
@@ -14,7 +14,7 @@
     .btn-start { background: #10b981; color: #022c22; }
     .btn-stop { background: #ef4444; color: #fff; }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
-    .banner-warning { background: #78350f; color: #fde68a; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; display: none; }
+    .status-badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; background: #1e293b; color: #94a3b8; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
     .card { background: #111827; border-radius: 8px; overflow: hidden; border: 1px solid #1f2937; }
     .card-header { padding: 8px 12px; font-size: 13px; display: flex; justify-content: space-between; background: #030712; }
@@ -24,16 +24,15 @@
 </head>
 <body>
 
-  <div id="mobileNotice" class="banner-warning">
-    <strong>Device Notice:</strong> Mobile browsers (iOS & Android) do not allow full-device screen sharing via web browsers due to OS security. You can still watch other screens live below.
-  </div>
-
   <header>
-    <h2>Live Device Grid</h2>
+    <div>
+      <h2>Live Device Grid</h2>
+      <span id="modeBadge" class="status-badge">Detecting capabilities...</span>
+    </div>
     <div class="controls">
       <input type="text" id="username" placeholder="Your Name" />
-      <button id="startBtn" class="btn-start" onclick="startSharing()">Share Screen</button>
-      <button id="stopBtn" class="btn-stop" onclick="stopSharing()" disabled>Stop</button>
+      <button id="startBtn" class="btn-start" onclick="startBroadcast()">Start Sharing</button>
+      <button id="stopBtn" class="btn-stop" onclick="stopBroadcast()" disabled>Stop</button>
     </div>
   </header>
 
@@ -50,49 +49,63 @@
 
     document.getElementById("username").value = myUserId;
 
-    // Detect if the browser engine supports display capture
-    const isScreenShareSupported = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
-    if (!isScreenShareSupported) {
-      document.getElementById("startBtn").disabled = true;
-      document.getElementById("startBtn").title = "Screen capture unsupported on this device";
-      document.getElementById("mobileNotice").style.display = "block";
+    // Check if device supports true screen sharing or needs camera fallback
+    const hasScreenShare = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+    const startBtn = document.getElementById("startBtn");
+    const modeBadge = document.getElementById("modeBadge");
+
+    if (hasScreenShare) {
+      modeBadge.textContent = "Desktop Mode (Full Screen)";
+      startBtn.textContent = "Share Screen";
+    } else {
+      modeBadge.textContent = "Mobile Mode (Camera Feed)";
+      startBtn.textContent = "Share Camera";
     }
 
-    async function startSharing() {
+    async function startBroadcast() {
       const nameInput = document.getElementById("username").value.trim();
       if (nameInput) myUserId = nameInput;
 
       try {
-        localStream = await navigator.mediaDevices.getDisplayMedia({
-          video: { frameRate: 5, width: { max: 1280 } },
-          audio: false
-        });
+        if (hasScreenShare) {
+          // Desktop Screen Capture
+          localStream = await navigator.mediaDevices.getDisplayMedia({
+            video: { frameRate: 5, width: { max: 1280 } },
+            audio: false
+          });
+        } else {
+          // Mobile Fallback: Camera Stream
+          localStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user", width: { max: 640 } },
+            audio: false
+          });
+        }
 
         const video = document.getElementById("captureVideo");
         video.srcObject = localStream;
         await video.play();
 
-        document.getElementById("startBtn").disabled = true;
+        startBtn.disabled = true;
         document.getElementById("stopBtn").disabled = false;
         document.getElementById("username").disabled = true;
 
-        localStream.getVideoTracks()[0].onended = stopSharing;
+        localStream.getVideoTracks()[0].onended = stopBroadcast;
 
-        // Sync screen every 4 seconds
+        // Push frames every 4 seconds
         uploadTimer = setInterval(captureAndUpload, 4000);
         captureAndUpload();
       } catch (err) {
-        console.warn("Screen sharing cancelled or unavailable:", err);
+        console.warn("Broadcast canceled or permission denied:", err);
       }
     }
 
-    function stopSharing() {
+    function stopBroadcast() {
       if (localStream) {
         localStream.getTracks().forEach(t => t.stop());
         localStream = null;
       }
       clearInterval(uploadTimer);
-      document.getElementById("startBtn").disabled = false;
+      startBtn.disabled = false;
       document.getElementById("stopBtn").disabled = true;
       document.getElementById("username").disabled = false;
     }
@@ -102,7 +115,6 @@
       const canvas = document.getElementById("captureCanvas");
       if (!video.videoWidth) return;
 
-      // Keep resolution compact (480px width) to guarantee sub-50KB string size
       const targetWidth = 480;
       const targetHeight = Math.round((video.videoHeight / video.videoWidth) * targetWidth);
       canvas.width = targetWidth;
@@ -111,7 +123,6 @@
       const ctx = canvas.getContext("2d");
       ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
 
-      // Low quality (0.3) produces base64 string ~15KB-25KB, well within Google Sheets limits
       const base64 = canvas.toDataURL("image/jpeg", 0.3);
 
       try {
@@ -163,7 +174,6 @@
       });
     }
 
-    // Continuous polling loop
     syncScreens();
     setInterval(syncScreens, 4000);
   </script>
