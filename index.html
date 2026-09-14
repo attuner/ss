@@ -219,7 +219,6 @@
       font-weight: 500;
     }
 
-    /* YouTube Pill Buttons */
     button {
       padding: 6px 14px;
       border: none;
@@ -274,7 +273,7 @@
       background: #383838;
     }
 
-    /* Main Container & Video Grid (Portrait 9:16 aspect cards) */
+    /* Main Container & Video Grid (Portrait format) */
     main {
       flex: 1;
       padding: 16px;
@@ -301,7 +300,6 @@
       }
     }
 
-    /* Card Layout - YouTube Shorts / Live Stream Style */
     .video-card {
       background: #181818;
       border-radius: 12px;
@@ -316,7 +314,7 @@
       display: none !important;
     }
 
-    /* Broadcast in Portrait Format (9:16) */
+    /* Portrait Format (9:16) */
     .video-box {
       position: relative;
       aspect-ratio: 9 / 16;
@@ -373,7 +371,6 @@
       font-size: 11px;
     }
 
-    /* Card Footer */
     .card-footer {
       padding: 10px 12px;
       background: #1f1f1f;
@@ -409,7 +406,6 @@
       gap: 4px;
     }
 
-    /* YouTube Pill Action Buttons (+1 / -1) */
     .point-buttons {
       display: flex;
       background: #272727;
@@ -436,7 +432,6 @@
       border-right: 1px solid #383838;
     }
 
-    /* Live Comments Container */
     .comment-section {
       background: #121212;
       border-top: 1px solid #272727;
@@ -497,7 +492,7 @@
       border-radius: 16px;
     }
 
-    /* Fullscreen Modal with Rotation Support */
+    /* Fullscreen Modal */
     #fullscreenModal {
       position: fixed;
       inset: 0;
@@ -530,7 +525,6 @@
       cursor: default;
     }
 
-    /* Landscape Toggle Class */
     #fullscreenContainer.landscape-mode {
       transform: rotate(90deg);
       width: 85vh;
@@ -552,12 +546,12 @@
       justify-content: center;
     }
 
-    .btn-rotate {
+    .btn-rotate, .btn-mute {
       background: #272727;
       color: #fff;
     }
 
-    .btn-rotate:hover {
+    .btn-rotate:hover, .btn-mute:hover {
       background: #383838;
     }
 
@@ -568,15 +562,6 @@
 
     .btn-close:hover {
       background: #ff0000;
-    }
-
-    .btn-mute {
-      background: #272727;
-      color: #fff;
-    }
-
-    .btn-mute:hover {
-      background: #383838;
     }
   </style>
 </head>
@@ -622,7 +607,7 @@
       <button class="btn-refresh" onclick="manualRefresh()" title="Scan for latest streams">🔄 Refresh</button>
       <span class="user-tag" id="userBadge">Guest</span>
       <button id="goLiveBtn" class="btn-live" onclick="toggleBroadcasting()">Go Live</button>
-      <button id="switchCamBtn" class="btn-media" onclick="switchCamera()" style="display:none;" title="Flip between front and back camera">🔄 Flip Cam</button>
+      <button id="switchCamBtn" class="btn-media" onclick="switchCamera()" style="display:none;" title="Flip camera">🔄 Flip Cam</button>
       <button id="toggleCamBtn" class="btn-media" onclick="toggleCamera()" style="display:none;">Cam Off</button>
       <button id="toggleMicBtn" class="btn-media" onclick="toggleMic()" style="display:none;">Mute Mic</button>
       <button class="btn-logout" onclick="handleLogout()">Logout</button>
@@ -637,7 +622,7 @@
     </div>
   </main>
 
-  <!-- Fullscreen Modal View with Rotation Toggle -->
+  <!-- Fullscreen Modal View -->
   <div id="fullscreenModal">
     <div id="fullscreenContainer"></div>
     <div class="modal-controls">
@@ -656,20 +641,19 @@
     let myPeerId = null;
     let localStream = null;
     let isBroadcaster = false;
-    let outgoingCalls = {};
+    let activeCalls = {};
     let syncTimer = null;
-    let currentFacingMode = "user"; // Camera mode
+    let currentFacingMode = "user";
     let fullscreenBoxHolder = null;
     let isLandscape = false;
 
-    // Register PWA Service Worker
+    // Service Worker
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("sw.js").catch((err) => console.log("SW Reg Error:", err));
+        navigator.serviceWorker.register("sw.js").catch(() => {});
       });
     }
 
-    // Auto load session
     window.addEventListener("DOMContentLoaded", () => {
       const savedUser = localStorage.getItem("camhub_auth");
       if (savedUser) {
@@ -733,7 +717,7 @@
       currentUser = null;
       myPeerId = null;
       isBroadcaster = false;
-      outgoingCalls = {};
+      activeCalls = {};
 
       document.getElementById("grid").innerHTML = `
         <div id="emptyNotice" style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: #717171;">
@@ -755,11 +739,13 @@
     function initHub() {
       document.getElementById("userBadge").textContent = currentUser.name;
 
+      // Clean, reliable public WebRTC STUN configuration
       peer = new Peer({
         config: {
           iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
-            { urls: "stun:stun1.l.google.com:19302" }
+            { urls: "stun:stun1.l.google.com:19302" },
+            { urls: "stun:stun2.l.google.com:19302" }
           ]
         }
       });
@@ -768,22 +754,32 @@
         myPeerId = id;
         document.getElementById("statusDot").classList.add("online");
         syncRegistry();
+        if (syncTimer) clearInterval(syncTimer);
         syncTimer = setInterval(syncRegistry, 4000);
       });
 
+      // Handle incoming calls (Broadcaster -> Viewer OR Viewer -> Broadcaster)
       peer.on("call", (call) => {
-        call.answer();
-        const broadcasterName = call.metadata?.name || "Broadcaster";
+        // If we have a local stream, answer with it. Otherwise answer empty (receive-only)
+        call.answer(localStream || undefined);
+
+        const peerName = call.metadata?.name || "Broadcaster";
         call.on("stream", (remoteStream) => {
-          renderCard(call.peer, broadcasterName, remoteStream, false);
+          renderCard(call.peer, peerName, remoteStream, false);
         });
+
         call.on("close", () => {
           removeCard(call.peer);
         });
+
+        activeCalls[call.peer] = call;
+      });
+
+      peer.on("error", (err) => {
+        console.warn("PeerJS event:", err);
       });
     }
 
-    // 4) Portrait format broadcast constraints (aspect ratio 9/16, width: 720, height: 1280)
     async function toggleBroadcasting() {
       const liveBtn = document.getElementById("goLiveBtn");
 
@@ -795,8 +791,7 @@
               facingMode: currentFacingMode,
               aspectRatio: { ideal: 9 / 16 },
               width: { ideal: 720 },
-              height: { ideal: 1280 },
-              frameRate: { ideal: 24 }
+              height: { ideal: 1280 }
             },
             audio: true
           });
@@ -809,17 +804,19 @@
           document.getElementById("toggleMicBtn").style.display = "inline-block";
 
           renderCard("local", currentUser.name + " (You)", localStream, true);
+          
+          // Re-sync immediately to broadcast our peer ID as broadcaster
           syncRegistry();
         } catch (err) {
-          alert("Could not access camera/mic: " + err.message);
+          alert("Could not access camera/microphone: " + err.message);
         }
       } else {
         if (localStream) {
           localStream.getTracks().forEach(t => t.stop());
           localStream = null;
         }
-        Object.values(outgoingCalls).forEach(call => call.close());
-        outgoingCalls = {};
+        Object.values(activeCalls).forEach(call => call.close());
+        activeCalls = {};
 
         isBroadcaster = false;
         liveBtn.textContent = "Go Live";
@@ -833,34 +830,27 @@
       }
     }
 
-    // 2) Fixed flip cam on mobile devices
     async function switchCamera() {
       if (!isBroadcaster || !localStream) return;
 
       const oldVideoTrack = localStream.getVideoTracks()[0];
-      if (oldVideoTrack) {
-        oldVideoTrack.stop(); // Must stop old track completely on mobile before requesting another camera
-      }
+      if (oldVideoTrack) oldVideoTrack.stop();
 
       currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
-
-      // Mobile friendly fallback constraint configuration
-      const constraints = {
-        video: {
-          facingMode: { ideal: currentFacingMode },
-          aspectRatio: { ideal: 9 / 16 },
-          width: { ideal: 720 },
-          height: { ideal: 1280 }
-        },
-        audio: false
-      };
 
       try {
         let newStream;
         try {
-          newStream = await navigator.mediaDevices.getUserMedia(constraints);
-        } catch (err) {
-          // Fallback if ideal fails on certain mobile OS browsers
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { exact: currentFacingMode },
+              aspectRatio: { ideal: 9 / 16 },
+              width: { ideal: 720 },
+              height: { ideal: 1280 }
+            },
+            audio: false
+          });
+        } catch (e) {
           newStream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: currentFacingMode }
           });
@@ -868,8 +858,8 @@
 
         const newVideoTrack = newStream.getVideoTracks()[0];
 
-        // Replace track across all WebRTC peer connections
-        Object.values(outgoingCalls).forEach(call => {
+        // Replace track across outgoing peer connections
+        Object.values(activeCalls).forEach(call => {
           if (call.peerConnection) {
             const senders = call.peerConnection.getSenders();
             const videoSender = senders.find(s => s.track && s.track.kind === "video");
@@ -879,17 +869,13 @@
           }
         });
 
-        // Replace track in localStream instance
-        if (oldVideoTrack) {
-          localStream.removeTrack(oldVideoTrack);
-        }
+        if (oldVideoTrack) localStream.removeTrack(oldVideoTrack);
         localStream.addTrack(newVideoTrack);
 
         const localVid = document.querySelector("#box-local video");
         if (localVid) localVid.srcObject = localStream;
       } catch (err) {
-        console.error("Camera flip error on mobile:", err);
-        alert("Camera switch failed: " + err.message);
+        console.warn("Camera flip fallback:", err);
       }
     }
 
@@ -897,18 +883,19 @@
       const btn = document.querySelector(".btn-refresh");
       btn.textContent = "Scanning...";
       syncRegistry().finally(() => {
-        setTimeout(() => { btn.textContent = "🔄 Refresh"; }, 800);
+        setTimeout(() => { btn.textContent = "🔄 Refresh"; }, 600);
       });
     }
 
+    // Bidirectional Signaling & Heartbeat Sync
     async function syncRegistry() {
       if (!myPeerId || !currentUser) return;
 
       try {
-        await fetch(SCRIPT_URL, {
+        // 1. Send heartbeat
+        fetch(SCRIPT_URL, {
           method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "text/plain" },
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify({
             action: "heartbeat",
             room: ROOM_ID,
@@ -916,11 +903,13 @@
             name: currentUser.name,
             role: isBroadcaster ? "broadcaster" : "viewer"
           })
-        });
+        }).catch(() => {});
 
-        const res = await fetch(`${SCRIPT_URL}?room=${encodeURIComponent(ROOM_ID)}`);
+        // 2. Fetch all online peers
+        const res = await fetch(`${SCRIPT_URL}?room=${encodeURIComponent(ROOM_ID)}&_t=${Date.now()}`);
         const data = await res.json();
 
+        // Update score, viewers & comments
         data.broadcasters.forEach(b => {
           if (b.peerId === myPeerId && isBroadcaster) {
             updateCardMeta("local", data.totalAudience, b.score, b.comments);
@@ -929,26 +918,42 @@
           }
         });
 
+        // 3. BIDIRECTIONAL HANDSHAKE (The Fix):
+        // If WE are broadcaster, push stream to every online viewer
         if (isBroadcaster && localStream) {
           data.viewers.forEach(v => {
-            if (v.peerId !== myPeerId && !outgoingCalls[v.peerId]) {
+            if (v.peerId !== myPeerId && !activeCalls[v.peerId]) {
               const call = peer.call(v.peerId, localStream, {
                 metadata: { name: currentUser.name }
               });
-              outgoingCalls[v.peerId] = call;
-            }
-          });
-
-          data.broadcasters.forEach(b => {
-            if (b.peerId !== myPeerId && !outgoingCalls[b.peerId] && myPeerId > b.peerId) {
-              const call = peer.call(b.peerId, localStream, {
-                metadata: { name: currentUser.name }
-              });
-              outgoingCalls[b.peerId] = call;
+              if (call) activeCalls[v.peerId] = call;
             }
           });
         }
 
+        // If WE are viewer, dial into any broadcaster we don't have yet!
+        if (!isBroadcaster) {
+          data.broadcasters.forEach(b => {
+            if (b.peerId !== myPeerId && !activeCalls[b.peerId]) {
+              // Create an empty dummy audio track so browsers don't reject call setup
+              const call = peer.call(b.peerId, createDummyStream(), {
+                metadata: { name: currentUser.name }
+              });
+
+              if (call) {
+                call.on("stream", (remoteStream) => {
+                  renderCard(b.peerId, b.name, remoteStream, false);
+                });
+                call.on("close", () => {
+                  removeCard(b.peerId);
+                });
+                activeCalls[b.peerId] = call;
+              }
+            }
+          });
+        }
+
+        // Clean offline broadcasters
         const activeBroadcasterIds = new Set(data.broadcasters.map(b => b.peerId));
         document.querySelectorAll(".video-card").forEach(card => {
           const id = card.id.replace("card-", "");
@@ -959,8 +964,19 @@
 
         filterStreams();
       } catch (err) {
-        console.error("Sync error:", err);
+        console.error("Signaling error:", err);
       }
+    }
+
+    // Helper: generates a silent dummy track so receive-only callers can initiate
+    function createDummyStream() {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = ctx.createOscillator();
+      const dst = oscillator.connect(ctx.createMediaStreamDestination());
+      oscillator.start();
+      const track = dst.stream.getAudioTracks()[0];
+      track.enabled = false;
+      return dst.stream;
     }
 
     function renderCard(id, name, stream, isMuted) {
@@ -1041,9 +1057,9 @@
 
       const card = document.getElementById("card-" + id);
       if (card) card.remove();
-      if (outgoingCalls[id]) {
-        outgoingCalls[id].close();
-        delete outgoingCalls[id];
+      if (activeCalls[id]) {
+        activeCalls[id].close();
+        delete activeCalls[id];
       }
       if (document.querySelectorAll(".video-card").length === 0) {
         document.getElementById("emptyNotice").style.display = "block";
@@ -1058,16 +1074,15 @@
         sEl.textContent = current + delta;
       }
 
-      await fetch(SCRIPT_URL, {
+      fetch(SCRIPT_URL, {
         method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain" },
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
           action: "vote",
           targetPeerId: targetPeerId,
           delta: delta
         })
-      });
+      }).catch(() => {});
     }
 
     async function sendComment(cardId) {
@@ -1079,8 +1094,7 @@
 
       await fetch(SCRIPT_URL, {
         method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain" },
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
           action: "comment",
           targetPeerId: targetPeerId,
@@ -1105,13 +1119,11 @@
       });
     }
 
-    // 1) Fullscreen video viewing with Portrait / Landscape rotation toggle
     function openFullscreen(videoBox) {
       const modal = document.getElementById("fullscreenModal");
       const container = document.getElementById("fullscreenContainer");
       fullscreenBoxHolder = videoBox;
 
-      // Reset orientation to portrait by default
       isLandscape = false;
       container.classList.remove("landscape-mode");
       document.getElementById("rotateBtn").textContent = "🔄 Landscape";
@@ -1135,25 +1147,15 @@
       if (isLandscape) {
         container.classList.add("landscape-mode");
         rotateBtn.textContent = "🔄 Portrait";
-        if (screen.orientation && screen.orientation.lock) {
-          screen.orientation.lock("landscape").catch(() => {});
-        }
       } else {
         container.classList.remove("landscape-mode");
         rotateBtn.textContent = "🔄 Landscape";
-        if (screen.orientation && screen.orientation.lock) {
-          screen.orientation.lock("portrait").catch(() => {});
-        }
       }
     }
 
     function closeFullscreen() {
       const modal = document.getElementById("fullscreenModal");
       const container = document.getElementById("fullscreenContainer");
-
-      if (screen.orientation && screen.orientation.unlock) {
-        try { screen.orientation.unlock(); } catch (e) {}
-      }
 
       container.classList.remove("landscape-mode");
       isLandscape = false;
