@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Live Camera Hub & Interactive Viewer</title>
+  <title>Live Camera Hub</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: #0b0f17; color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; }
 
-    /* Registration Overlay Modal */
+    /* Registration Modal */
     #registerOverlay {
       position: fixed;
       inset: 0;
-      background: rgba(11, 15, 23, 0.95);
+      background: rgba(11, 15, 23, 0.96);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -30,8 +30,8 @@
       box-shadow: 0 10px 25px rgba(0,0,0,0.6);
       text-align: center;
     }
-    .register-card h2 { font-size: 22px; margin-bottom: 8px; color: #f8fafc; }
-    .register-card p { font-size: 13px; color: #94a3b8; margin-bottom: 20px; line-height: 1.4; }
+    .register-card h2 { font-size: 22px; margin-bottom: 6px; color: #f8fafc; }
+    .register-card p { font-size: 13px; color: #94a3b8; margin-bottom: 20px; }
     .reg-field { display: flex; flex-direction: column; gap: 6px; text-align: left; margin-bottom: 14px; }
     .reg-field label { font-size: 12px; color: #cbd5e1; font-weight: 600; }
     .reg-field input {
@@ -210,15 +210,15 @@
 </head>
 <body>
 
-  <!-- Mandatory User Registration Overlay -->
+  <!-- Mandatory PIN Registration -->
   <div id="registerOverlay">
     <div class="register-card">
-      <h2>Join Camera Hub</h2>
-      <p>Enter your full name and a 6-digit PIN to access live streams.</p>
+      <h2>Join Live Hub</h2>
+      <p>Enter your name and a 6-digit PIN to watch live feeds.</p>
       
       <div class="reg-field">
         <label>Your Name</label>
-        <input type="text" id="regName" placeholder="e.g. Alex Smith" autocomplete="off" />
+        <input type="text" id="regName" placeholder="e.g. Alex" autocomplete="off" />
       </div>
 
       <div class="reg-field">
@@ -238,7 +238,7 @@
     </div>
 
     <div class="search-box">
-      <input type="text" id="streamSearch" placeholder="🔍 Search streamer by name..." oninput="filterStreams()" />
+      <input type="text" id="streamSearch" placeholder="🔍 Search streamer..." oninput="filterStreams()" />
     </div>
 
     <div class="controls">
@@ -257,7 +257,6 @@
     </div>
   </main>
 
-  <!-- Fullscreen Modal View -->
   <div id="fullscreenModal">
     <video id="modalVideo" autoplay playsinline></video>
     <div class="modal-controls">
@@ -276,9 +275,8 @@
     let myPeerId = null;
     let localStream = null;
     let isBroadcaster = false;
-    let activeCalls = {};
+    let outgoingCalls = {}; // Broadcaster -> Viewers calls
 
-    // Check if user credentials already exist in session
     window.addEventListener("DOMContentLoaded", () => {
       const savedUser = sessionStorage.getItem("camhub_user");
       if (savedUser) {
@@ -288,7 +286,6 @@
       }
     });
 
-    // Step 1: Submit Registration
     async function submitRegistration() {
       const name = document.getElementById("regName").value.trim();
       const pin = document.getElementById("regPin").value.trim();
@@ -300,11 +297,11 @@
         return;
       }
       if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
-        errEl.textContent = "PIN must be exactly 6 numeric digits.";
+        errEl.textContent = "PIN must be exactly 6 digits.";
         return;
       }
 
-      errEl.textContent = "Verifying with Google Sheet...";
+      errEl.textContent = "Verifying...";
 
       try {
         const res = await fetch(SCRIPT_URL, {
@@ -324,11 +321,9 @@
         }
       } catch (err) {
         errEl.textContent = "Network error. Try again.";
-        console.error(err);
       }
     }
 
-    // Step 2: Initialize Hub as a Viewer immediately (No camera asked)
     function initHub() {
       document.getElementById("userBadge").textContent = currentUser.name;
 
@@ -345,29 +340,27 @@
         myPeerId = id;
         document.getElementById("statusDot").classList.add("online");
 
-        // Sync with Google Sheet immediately and every 4s
         syncRegistry();
         setInterval(syncRegistry, 4000);
       });
 
-      // Handle receiving incoming streams
+      // Viewers listen for incoming calls pushed from broadcasters
       peer.on("call", (call) => {
-        call.answer(localStream || undefined);
-        const callerName = call.metadata?.name || "Broadcaster";
+        // Answer call without providing a stream (Receive Only)
+        call.answer();
 
+        const broadcasterName = call.metadata?.name || "Broadcaster";
         call.on("stream", (remoteStream) => {
-          renderCard(call.peer, callerName, remoteStream, false);
+          renderCard(call.peer, broadcasterName, remoteStream, false);
         });
 
         call.on("close", () => {
           removeCard(call.peer);
         });
-
-        activeCalls[call.peer] = call;
       });
     }
 
-    // Step 3: Optional Broadcasting ("Go Live")
+    // Toggle Camera (Broadcaster)
     async function toggleBroadcasting() {
       const liveBtn = document.getElementById("goLiveBtn");
 
@@ -384,16 +377,21 @@
           document.getElementById("toggleCamBtn").style.display = "inline-block";
           document.getElementById("toggleMicBtn").style.display = "inline-block";
 
+          // Show own video card
           renderCard("local", currentUser.name + " (You)", localStream, true);
           syncRegistry();
         } catch (err) {
-          alert("Camera/Audio access failed: " + err.message);
+          alert("Could not access camera/mic: " + err.message);
         }
       } else {
         if (localStream) {
           localStream.getTracks().forEach(t => t.stop());
           localStream = null;
         }
+        // Close all outgoing calls to viewers
+        Object.values(outgoingCalls).forEach(call => call.close());
+        outgoingCalls = {};
+
         isBroadcaster = false;
         liveBtn.textContent = "Go Live";
         liveBtn.className = "btn-live";
@@ -405,7 +403,7 @@
       }
     }
 
-    // Synchronize Registry & Discover Online Feeds
+    // Signaling loop via Google Sheet
     async function syncRegistry() {
       if (!myPeerId || !currentUser) return;
 
@@ -426,32 +424,39 @@
         const res = await fetch(`${SCRIPT_URL}?room=${encodeURIComponent(ROOM_ID)}`);
         const data = await res.json();
 
-        const activeBroadcasterIds = new Set(data.broadcasters.map(b => b.peerId));
-
+        // 1. Update existing cards with fresh comments & likes
         data.broadcasters.forEach(b => {
-          updateCardMeta(b.peerId, data.viewerCount, b.likes, b.dislikes, b.comments);
-
-          // Viewer initiates connection to watch broadcaster
-          if (b.peerId !== myPeerId && !activeCalls[b.peerId]) {
-            const call = peer.call(b.peerId, localStream || undefined, {
-              metadata: { name: currentUser.name }
-            });
-
-            call.on("stream", (remoteStream) => {
-              renderCard(b.peerId, b.name, remoteStream, false);
-            });
-
-            call.on("close", () => {
-              removeCard(b.peerId);
-            });
-
-            activeCalls[b.peerId] = call;
-          }
+          updateCardMeta(b.peerId, data.totalAudience, b.likes, b.dislikes, b.comments);
         });
 
-        // Clean offline streams
-        Object.keys(activeCalls).forEach(id => {
-          if (!activeBroadcasterIds.has(id)) {
+        // 2. If WE are the broadcaster, call all registered viewers to push our feed
+        if (isBroadcaster && localStream) {
+          // Push to all viewers in the room
+          data.viewers.forEach(v => {
+            if (v.peerId !== myPeerId && !outgoingCalls[v.peerId]) {
+              const call = peer.call(v.peerId, localStream, {
+                metadata: { name: currentUser.name }
+              });
+              outgoingCalls[v.peerId] = call;
+            }
+          });
+
+          // Also push to other co-broadcasters so broadcasters can see each other
+          data.broadcasters.forEach(b => {
+            if (b.peerId !== myPeerId && !outgoingCalls[b.peerId] && myPeerId > b.peerId) {
+              const call = peer.call(b.peerId, localStream, {
+                metadata: { name: currentUser.name }
+              });
+              outgoingCalls[b.peerId] = call;
+            }
+          });
+        }
+
+        // 3. Remove cards of broadcasters who have left
+        const activeBroadcasterIds = new Set(data.broadcasters.map(b => b.peerId));
+        document.querySelectorAll(".video-card").forEach(card => {
+          const id = card.id.replace("card-", "");
+          if (id !== "local" && !activeBroadcasterIds.has(id)) {
             removeCard(id);
           }
         });
@@ -462,7 +467,6 @@
       }
     }
 
-    // Render Stream UI
     function renderCard(id, name, stream, isMuted) {
       document.getElementById("emptyNotice").style.display = "none";
       if (document.getElementById("card-" + id)) return;
@@ -477,7 +481,7 @@
         <div class="video-box" id="box-${id}">
           <div class="video-overlay">
             <span class="badge-name">${name}</span>
-            <span class="badge-fullscreen">Full Screen + Sound</span>
+            <span class="badge-fullscreen">Full View + Sound</span>
           </div>
         </div>
         <div class="card-footer">
@@ -490,7 +494,7 @@
         <div class="comment-section">
           <div class="comment-list" id="comments-${id}"></div>
           <div class="comment-form">
-            <input type="text" id="input-comment-${id}" placeholder="Say something..." onkeydown="if(event.key==='Enter') sendComment('${id}')" />
+            <input type="text" id="input-comment-${id}" placeholder="Type comment..." onkeydown="if(event.key==='Enter') sendComment('${id}')" />
             <button onclick="sendComment('${id}')">Send</button>
           </div>
         </div>
@@ -532,9 +536,9 @@
     function removeCard(id) {
       const card = document.getElementById("card-" + id);
       if (card) card.remove();
-      if (activeCalls[id]) {
-        activeCalls[id].close();
-        delete activeCalls[id];
+      if (outgoingCalls[id]) {
+        outgoingCalls[id].close();
+        delete outgoingCalls[id];
       }
       if (document.querySelectorAll(".video-card").length === 0) {
         document.getElementById("emptyNotice").style.display = "block";
