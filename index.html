@@ -9,8 +9,8 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: #0b0f17; color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; }
 
-    /* Registration Modal */
-    #registerOverlay {
+    /* Auth Modal */
+    #authOverlay {
       position: fixed;
       inset: 0;
       background: rgba(11, 15, 23, 0.96);
@@ -20,21 +20,21 @@
       z-index: 2000;
       padding: 16px;
     }
-    .register-card {
+    .auth-card {
       background: #131d2e;
       border: 1px solid #1e293b;
       border-radius: 14px;
-      padding: 30px 24px;
+      padding: 32px 26px;
       max-width: 380px;
       width: 100%;
       box-shadow: 0 10px 25px rgba(0,0,0,0.6);
       text-align: center;
     }
-    .register-card h2 { font-size: 22px; margin-bottom: 6px; color: #f8fafc; }
-    .register-card p { font-size: 13px; color: #94a3b8; margin-bottom: 20px; }
-    .reg-field { display: flex; flex-direction: column; gap: 6px; text-align: left; margin-bottom: 14px; }
-    .reg-field label { font-size: 12px; color: #cbd5e1; font-weight: 600; }
-    .reg-field input {
+    .auth-card h2 { font-size: 22px; margin-bottom: 6px; color: #f8fafc; }
+    .auth-card p { font-size: 13px; color: #94a3b8; margin-bottom: 20px; }
+    .field { display: flex; flex-direction: column; gap: 6px; text-align: left; margin-bottom: 14px; }
+    .field label { font-size: 12px; color: #cbd5e1; font-weight: 600; }
+    .field input {
       padding: 10px 12px;
       background: #1e293b;
       border: 1px solid #334155;
@@ -43,9 +43,9 @@
       font-size: 14px;
       outline: none;
     }
-    .reg-field input:focus { border-color: #38bdf8; }
-    .reg-error { font-size: 12px; color: #ef4444; margin-bottom: 12px; min-height: 16px; }
-    .btn-register {
+    .field input:focus { border-color: #38bdf8; }
+    .auth-error { font-size: 12px; color: #ef4444; margin-bottom: 12px; min-height: 16px; }
+    .btn-auth {
       width: 100%;
       padding: 11px;
       background: #38bdf8;
@@ -57,6 +57,7 @@
       font-size: 14px;
     }
 
+    /* Main Header */
     header {
       padding: 12px 20px;
       background: #111827;
@@ -74,7 +75,7 @@
     .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
     .status-dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
 
-    .search-box { flex: 1; max-width: 360px; }
+    .search-box { flex: 1; max-width: 340px; }
     .search-box input {
       width: 100%;
       padding: 8px 14px;
@@ -92,6 +93,8 @@
     button { padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; }
     .btn-live { background: #ef4444; color: #fff; }
     .btn-stop { background: #475569; color: #f8fafc; }
+    .btn-logout { background: #334155; color: #fca5a5; }
+    .btn-logout:hover { background: #475569; }
     .btn-media { background: #1e293b; color: #f8fafc; border: 1px solid #334155; }
 
     main { flex: 1; padding: 20px; }
@@ -210,24 +213,24 @@
 </head>
 <body>
 
-  <!-- Mandatory PIN Registration -->
-  <div id="registerOverlay">
-    <div class="register-card">
-      <h2>Join Live Hub</h2>
-      <p>Enter your name and a 6-digit PIN to watch live feeds.</p>
+  <!-- Mandatory Login/Register Overlay -->
+  <div id="authOverlay">
+    <div class="auth-card">
+      <h2>Welcome</h2>
+      <p>Log in or create an account with your Name and a 6-digit PIN.</p>
       
-      <div class="reg-field">
-        <label>Your Name</label>
-        <input type="text" id="regName" placeholder="e.g. Alex" autocomplete="off" />
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="authName" placeholder="Enter username" autocomplete="off" />
       </div>
 
-      <div class="reg-field">
+      <div class="field">
         <label>6-Digit PIN</label>
-        <input type="password" id="regPin" placeholder="••••••" maxlength="6" inputmode="numeric" />
+        <input type="password" id="authPin" placeholder="••••••" maxlength="6" inputmode="numeric" />
       </div>
 
-      <div class="reg-error" id="regError"></div>
-      <button class="btn-register" onclick="submitRegistration()">Enter Hub</button>
+      <div class="auth-error" id="authError"></div>
+      <button class="btn-auth" onclick="handleAuth()">Login / Register</button>
     </div>
   </div>
 
@@ -246,6 +249,7 @@
       <button id="goLiveBtn" class="btn-live" onclick="toggleBroadcasting()">Go Live</button>
       <button id="toggleCamBtn" class="btn-media" onclick="toggleCamera()" style="display:none;">Cam Off</button>
       <button id="toggleMicBtn" class="btn-media" onclick="toggleMic()" style="display:none;">Mute Mic</button>
+      <button class="btn-logout" onclick="handleLogout()">Logout</button>
     </div>
   </header>
 
@@ -275,25 +279,28 @@
     let myPeerId = null;
     let localStream = null;
     let isBroadcaster = false;
-    let outgoingCalls = {}; // Broadcaster -> Viewers calls
+    let outgoingCalls = {};
+    let syncTimer = null;
 
+    // Check existing login session
     window.addEventListener("DOMContentLoaded", () => {
-      const savedUser = sessionStorage.getItem("camhub_user");
+      const savedUser = localStorage.getItem("camhub_auth");
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
-        document.getElementById("registerOverlay").style.display = "none";
+        document.getElementById("authOverlay").style.display = "none";
         initHub();
       }
     });
 
-    async function submitRegistration() {
-      const name = document.getElementById("regName").value.trim();
-      const pin = document.getElementById("regPin").value.trim();
-      const errEl = document.getElementById("regError");
+    // 1. Login / Register Handler
+    async function handleAuth() {
+      const name = document.getElementById("authName").value.trim();
+      const pin = document.getElementById("authPin").value.trim();
+      const errEl = document.getElementById("authError");
       errEl.textContent = "";
 
       if (!name) {
-        errEl.textContent = "Please enter your name.";
+        errEl.textContent = "Please enter your username.";
         return;
       }
       if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
@@ -301,29 +308,66 @@
         return;
       }
 
-      errEl.textContent = "Verifying...";
+      errEl.textContent = "Authenticating...";
 
       try {
         const res = await fetch(SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ action: "register", name: name, pin: pin })
+          body: JSON.stringify({ action: "auth", name: name, pin: pin })
         });
         const resp = await res.json();
 
         if (resp.status === "ok") {
           currentUser = { name: resp.name, pin: pin };
-          sessionStorage.setItem("camhub_user", JSON.stringify(currentUser));
-          document.getElementById("registerOverlay").style.display = "none";
+          localStorage.setItem("camhub_auth", JSON.stringify(currentUser));
+          document.getElementById("authOverlay").style.display = "none";
           initHub();
         } else {
-          errEl.textContent = resp.message || "Registration failed.";
+          errEl.textContent = resp.message || "Authentication failed.";
         }
       } catch (err) {
         errEl.textContent = "Network error. Try again.";
       }
     }
 
+    // 2. Logout Handler
+    async function handleLogout() {
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      if (myPeerId) {
+        navigator.sendBeacon(SCRIPT_URL, JSON.stringify({ action: "logout", peerId: myPeerId }));
+      }
+
+      clearInterval(syncTimer);
+      if (peer) peer.destroy();
+
+      localStorage.removeItem("camhub_auth");
+      currentUser = null;
+      myPeerId = null;
+      isBroadcaster = false;
+      outgoingCalls = {};
+
+      // Reset UI
+      document.getElementById("grid").innerHTML = `
+        <div id="emptyNotice" style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: #64748b;">
+          Connecting to active online cameras...
+        </div>
+      `;
+      document.getElementById("statusDot").classList.remove("online");
+      document.getElementById("authName").value = "";
+      document.getElementById("authPin").value = "";
+      document.getElementById("authError").textContent = "";
+      document.getElementById("authOverlay").style.display = "flex";
+      document.getElementById("goLiveBtn").textContent = "Go Live";
+      document.getElementById("goLiveBtn").className = "btn-live";
+      document.getElementById("toggleCamBtn").style.display = "none";
+      document.getElementById("toggleMicBtn").style.display = "none";
+    }
+
+    // 3. Initialize Hub After Login (Viewer by default, immediately receives feeds)
     function initHub() {
       document.getElementById("userBadge").textContent = currentUser.name;
 
@@ -341,12 +385,11 @@
         document.getElementById("statusDot").classList.add("online");
 
         syncRegistry();
-        setInterval(syncRegistry, 4000);
+        syncTimer = setInterval(syncRegistry, 4000);
       });
 
-      // Viewers listen for incoming calls pushed from broadcasters
+      // Viewers receive calls from broadcasters
       peer.on("call", (call) => {
-        // Answer call without providing a stream (Receive Only)
         call.answer();
 
         const broadcasterName = call.metadata?.name || "Broadcaster";
@@ -360,7 +403,7 @@
       });
     }
 
-    // Toggle Camera (Broadcaster)
+    // 4. Broadcaster Toggle
     async function toggleBroadcasting() {
       const liveBtn = document.getElementById("goLiveBtn");
 
@@ -377,7 +420,6 @@
           document.getElementById("toggleCamBtn").style.display = "inline-block";
           document.getElementById("toggleMicBtn").style.display = "inline-block";
 
-          // Show own video card
           renderCard("local", currentUser.name + " (You)", localStream, true);
           syncRegistry();
         } catch (err) {
@@ -388,7 +430,6 @@
           localStream.getTracks().forEach(t => t.stop());
           localStream = null;
         }
-        // Close all outgoing calls to viewers
         Object.values(outgoingCalls).forEach(call => call.close());
         outgoingCalls = {};
 
@@ -403,7 +444,7 @@
       }
     }
 
-    // Signaling loop via Google Sheet
+    // 5. Google Sheet Session Syncing & Peer Discovery
     async function syncRegistry() {
       if (!myPeerId || !currentUser) return;
 
@@ -424,14 +465,13 @@
         const res = await fetch(`${SCRIPT_URL}?room=${encodeURIComponent(ROOM_ID)}`);
         const data = await res.json();
 
-        // 1. Update existing cards with fresh comments & likes
+        // Update card metadata (viewers, likes, comments)
         data.broadcasters.forEach(b => {
           updateCardMeta(b.peerId, data.totalAudience, b.likes, b.dislikes, b.comments);
         });
 
-        // 2. If WE are the broadcaster, call all registered viewers to push our feed
+        // If broadcasting, push video feed to all active viewers and peer broadcasters
         if (isBroadcaster && localStream) {
-          // Push to all viewers in the room
           data.viewers.forEach(v => {
             if (v.peerId !== myPeerId && !outgoingCalls[v.peerId]) {
               const call = peer.call(v.peerId, localStream, {
@@ -441,7 +481,6 @@
             }
           });
 
-          // Also push to other co-broadcasters so broadcasters can see each other
           data.broadcasters.forEach(b => {
             if (b.peerId !== myPeerId && !outgoingCalls[b.peerId] && myPeerId > b.peerId) {
               const call = peer.call(b.peerId, localStream, {
@@ -452,7 +491,7 @@
           });
         }
 
-        // 3. Remove cards of broadcasters who have left
+        // Remove disconnected broadcasters
         const activeBroadcasterIds = new Set(data.broadcasters.map(b => b.peerId));
         document.querySelectorAll(".video-card").forEach(card => {
           const id = card.id.replace("card-", "");
