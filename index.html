@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Live Camera Hub</title>
 
   <!-- PWA & Mobile Configuration -->
@@ -27,7 +27,6 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* Fixed mobile scroll: natural flow + disable pull-to-refresh without locking body */
     html {
       overscroll-behavior-y: contain;
       background-color: #0b0f17;
@@ -346,7 +345,7 @@
       font-size: 12px;
     }
 
-    /* Modal */
+    /* Fullscreen Modal Housing Entire Video Box */
     #fullscreenModal {
       position: fixed;
       inset: 0;
@@ -356,11 +355,36 @@
       align-items: center;
       justify-content: center;
       z-index: 1000;
+      padding: 16px;
     }
 
     #fullscreenModal.active { display: flex; }
-    #modalVideo { max-width: 95vw; max-height: 80vh; border-radius: 8px; }
-    .modal-controls { margin-top: 14px; display: flex; gap: 12px; align-items: center; }
+
+    #fullscreenContainer {
+      width: 100%;
+      max-width: 95vw;
+      max-height: 82vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #fullscreenContainer .video-box {
+      width: 100%;
+      height: 100%;
+      max-height: 82vh;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 35px rgba(0,0,0,0.9);
+      cursor: default;
+    }
+
+    .modal-controls {
+      margin-top: 14px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
     .btn-close { background: #ef4444; color: #fff; }
     .btn-mute { background: #334155; color: #fff; }
   </style>
@@ -403,6 +427,7 @@
       <button class="btn-refresh" onclick="manualRefresh()" title="Scan for latest cameras">🔄 Refresh</button>
       <span class="user-tag" id="userBadge">Guest</span>
       <button id="goLiveBtn" class="btn-live" onclick="toggleBroadcasting()">Go Live</button>
+      <button id="switchCamBtn" class="btn-media" onclick="switchCamera()" style="display:none;" title="Switch front/back camera">🔄 Flip Cam</button>
       <button id="toggleCamBtn" class="btn-media" onclick="toggleCamera()" style="display:none;">Cam Off</button>
       <button id="toggleMicBtn" class="btn-media" onclick="toggleMic()" style="display:none;">Mute Mic</button>
       <button class="btn-logout" onclick="handleLogout()">Logout</button>
@@ -417,18 +442,16 @@
     </div>
   </main>
 
-  <!-- Fullscreen Modal -->
+  <!-- Fullscreen Modal View Containing Entire Video-Box -->
   <div id="fullscreenModal">
-    <video id="modalVideo" autoplay playsinline></video>
+    <div id="fullscreenContainer"></div>
     <div class="modal-controls">
-      <span id="modalTitle" class="badge-name">Stream</span>
-      <button id="modalMuteBtn" class="btn-mute" onclick="toggleModalAudio()">Mute Audio</button>
+      <button id="modalMuteBtn" class="btn-mute" onclick="toggleModalAudio()">Mute</button>
       <button class="btn-close" onclick="closeFullscreen()">Exit Fullscreen</button>
     </div>
   </div>
 
   <script>
-    // Paste your deployed Google Apps Script URL here:
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxB-xsqymTmcVU7tqiitoD47zkN0j-5qHmMwxKoOGTdTdWdLcabGg-VB6-H-g9ENYncRg/exec";
     const ROOM_ID = "room1";
 
@@ -439,6 +462,8 @@
     let isBroadcaster = false;
     let outgoingCalls = {};
     let syncTimer = null;
+    let currentFacingMode = "user"; // Camera mode tracker
+    let fullscreenBoxHolder = null; // References the active fullscreen video box
 
     // Register PWA Service Worker
     if ("serviceWorker" in navigator) {
@@ -525,6 +550,7 @@
       document.getElementById("authOverlay").style.display = "flex";
       document.getElementById("goLiveBtn").textContent = "Go Live";
       document.getElementById("goLiveBtn").className = "btn-live";
+      document.getElementById("switchCamBtn").style.display = "none";
       document.getElementById("toggleCamBtn").style.display = "none";
       document.getElementById("toggleMicBtn").style.display = "none";
     }
@@ -565,14 +591,16 @@
 
       if (!isBroadcaster) {
         try {
+          currentFacingMode = "user";
           localStream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } },
+            video: { facingMode: currentFacingMode, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } },
             audio: true
           });
 
           isBroadcaster = true;
           liveBtn.textContent = "Stop Live";
           liveBtn.className = "btn-stop";
+          document.getElementById("switchCamBtn").style.display = "inline-block";
           document.getElementById("toggleCamBtn").style.display = "inline-block";
           document.getElementById("toggleMicBtn").style.display = "inline-block";
 
@@ -592,11 +620,50 @@
         isBroadcaster = false;
         liveBtn.textContent = "Go Live";
         liveBtn.className = "btn-live";
+        document.getElementById("switchCamBtn").style.display = "none";
         document.getElementById("toggleCamBtn").style.display = "none";
         document.getElementById("toggleMicBtn").style.display = "none";
 
         removeCard("local");
         syncRegistry();
+      }
+    }
+
+    // Switch between front/user and back/environment cameras
+    async function switchCamera() {
+      if (!isBroadcaster || !localStream) return;
+
+      currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: currentFacingMode, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } },
+          audio: false
+        });
+
+        const newVideoTrack = newStream.getVideoTracks()[0];
+        const oldVideoTrack = localStream.getVideoTracks()[0];
+
+        // Replace track in peer connections
+        Object.values(outgoingCalls).forEach(call => {
+          if (call.peerConnection) {
+            const senders = call.peerConnection.getSenders();
+            const videoSender = senders.find(s => s.track && s.track.kind === "video");
+            if (videoSender) {
+              videoSender.replaceTrack(newVideoTrack);
+            }
+          }
+        });
+
+        // Replace track locally
+        localStream.removeTrack(oldVideoTrack);
+        oldVideoTrack.stop();
+        localStream.addTrack(newVideoTrack);
+
+        const localVid = document.querySelector("#box-local video");
+        if (localVid) localVid.srcObject = localStream;
+      } catch (err) {
+        console.warn("Unable to switch camera:", err);
       }
     }
 
@@ -628,7 +695,6 @@
         const res = await fetch(`${SCRIPT_URL}?room=${encodeURIComponent(ROOM_ID)}`);
         const data = await res.json();
 
-        // Update card metadata (Viewer count beside score & comments)
         data.broadcasters.forEach(b => {
           if (b.peerId === myPeerId && isBroadcaster) {
             updateCardMeta("local", data.totalAudience, b.score, b.comments);
@@ -637,7 +703,6 @@
           }
         });
 
-        // Push outgoing stream to new viewers & peer broadcasters
         if (isBroadcaster && localStream) {
           data.viewers.forEach(v => {
             if (v.peerId !== myPeerId && !outgoingCalls[v.peerId]) {
@@ -658,7 +723,6 @@
           });
         }
 
-        // Clean offline broadcasters
         const activeBroadcasterIds = new Set(data.broadcasters.map(b => b.peerId));
         document.querySelectorAll(".video-card").forEach(card => {
           const id = card.id.replace("card-", "");
@@ -717,7 +781,7 @@
 
       const box = card.querySelector(`#box-${id}`);
       box.prepend(video);
-      box.onclick = () => openFullscreen(name, stream);
+      box.onclick = () => openFullscreen(box);
 
       grid.appendChild(card);
     }
@@ -741,6 +805,10 @@
     }
 
     function removeCard(id) {
+      if (fullscreenBoxHolder && fullscreenBoxHolder.id === `box-${id}`) {
+        closeFullscreen();
+      }
+
       const card = document.getElementById("card-" + id);
       if (card) card.remove();
       if (outgoingCalls[id]) {
@@ -807,27 +875,50 @@
       });
     }
 
-    function openFullscreen(title, stream) {
+    // View the entire video-box in fullscreen with mute toggle and exit option
+    function openFullscreen(videoBox) {
       const modal = document.getElementById("fullscreenModal");
-      const modalVideo = document.getElementById("modalVideo");
-      document.getElementById("modalTitle").textContent = title;
-      modalVideo.srcObject = stream;
-      modalVideo.muted = false;
+      const container = document.getElementById("fullscreenContainer");
+      fullscreenBoxHolder = videoBox;
+
+      // Move the entire video-box into modal
+      container.appendChild(videoBox);
+
+      const video = videoBox.querySelector("video");
+      if (video) {
+        video.muted = false; // Unmute sound in fullscreen
+        document.getElementById("modalMuteBtn").textContent = "Mute";
+      }
+
       modal.classList.add("active");
     }
 
     function closeFullscreen() {
       const modal = document.getElementById("fullscreenModal");
-      const modalVideo = document.getElementById("modalVideo");
-      modalVideo.srcObject = null;
-      modalVideo.muted = true;
+      if (fullscreenBoxHolder) {
+        const cardId = fullscreenBoxHolder.id.replace("box-", "card-");
+        const parentCard = document.getElementById(cardId);
+        if (parentCard) {
+          // Restore the video-box back to its original card layout
+          parentCard.prepend(fullscreenBoxHolder);
+        }
+
+        const video = fullscreenBoxHolder.querySelector("video");
+        if (video) {
+          video.muted = true; // Mute again on grid preview
+        }
+        fullscreenBoxHolder = null;
+      }
       modal.classList.remove("active");
     }
 
     function toggleModalAudio() {
-      const modalVideo = document.getElementById("modalVideo");
-      modalVideo.muted = !modalVideo.muted;
-      document.getElementById("modalMuteBtn").textContent = modalVideo.muted ? "Unmute Audio" : "Mute Audio";
+      if (!fullscreenBoxHolder) return;
+      const video = fullscreenBoxHolder.querySelector("video");
+      if (video) {
+        video.muted = !video.muted;
+        document.getElementById("modalMuteBtn").textContent = video.muted ? "Unmute" : "Mute";
+      }
     }
 
     function toggleCamera() {
