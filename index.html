@@ -9,6 +9,54 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: #0b0f17; color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; }
 
+    /* Registration Overlay Modal */
+    #registerOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(11, 15, 23, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 16px;
+    }
+    .register-card {
+      background: #131d2e;
+      border: 1px solid #1e293b;
+      border-radius: 14px;
+      padding: 30px 24px;
+      max-width: 380px;
+      width: 100%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+      text-align: center;
+    }
+    .register-card h2 { font-size: 22px; margin-bottom: 8px; color: #f8fafc; }
+    .register-card p { font-size: 13px; color: #94a3b8; margin-bottom: 20px; line-height: 1.4; }
+    .reg-field { display: flex; flex-direction: column; gap: 6px; text-align: left; margin-bottom: 14px; }
+    .reg-field label { font-size: 12px; color: #cbd5e1; font-weight: 600; }
+    .reg-field input {
+      padding: 10px 12px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #fff;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+    .reg-field input:focus { border-color: #38bdf8; }
+    .reg-error { font-size: 12px; color: #ef4444; margin-bottom: 12px; min-height: 16px; }
+    .btn-register {
+      width: 100%;
+      padding: 11px;
+      background: #38bdf8;
+      color: #020617;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
     header {
       padding: 12px 20px;
       background: #111827;
@@ -26,11 +74,7 @@
     .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
     .status-dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
 
-    .search-box {
-      flex: 1;
-      max-width: 380px;
-      position: relative;
-    }
+    .search-box { flex: 1; max-width: 360px; }
     .search-box input {
       width: 100%;
       padding: 8px 14px;
@@ -43,9 +87,9 @@
     }
     .search-box input:focus { border-color: #38bdf8; }
 
-    .controls { display: flex; gap: 8px; align-items: center; }
-    input.user-input { padding: 8px 12px; background: #1e293b; border: 1px solid #334155; color: #fff; border-radius: 6px; font-size: 14px; outline: none; }
-    button { padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: opacity 0.2s; }
+    .controls { display: flex; gap: 10px; align-items: center; }
+    .user-tag { background: #1e293b; padding: 6px 12px; border-radius: 6px; font-size: 13px; color: #38bdf8; font-weight: 600; }
+    button { padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; }
     .btn-live { background: #ef4444; color: #fff; }
     .btn-stop { background: #475569; color: #f8fafc; }
     .btn-media { background: #1e293b; color: #f8fafc; border: 1px solid #334155; }
@@ -74,12 +118,7 @@
       background: #020617;
       cursor: pointer;
     }
-    .video-box video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
+    .video-box video { width: 100%; height: 100%; object-fit: cover; display: block; }
     .video-overlay {
       position: absolute;
       top: 8px;
@@ -116,7 +155,6 @@
     }
     .btn-react:hover { background: #334155; }
 
-    /* Interactive Comments Box */
     .comment-section {
       background: #090d16;
       border-top: 1px solid #1e293b;
@@ -133,7 +171,6 @@
       gap: 6px;
       font-size: 12px;
       margin-bottom: 8px;
-      padding-right: 4px;
     }
     .comment-list::-webkit-scrollbar { width: 4px; }
     .comment-list::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
@@ -151,14 +188,9 @@
       font-size: 12px;
       outline: none;
     }
-    .comment-form button {
-      background: #38bdf8;
-      color: #020617;
-      padding: 6px 12px;
-      font-size: 12px;
-    }
+    .comment-form button { background: #38bdf8; color: #020617; padding: 6px 12px; font-size: 12px; }
 
-    /* Fullscreen Modal View */
+    /* Fullscreen Modal */
     #fullscreenModal {
       position: fixed;
       inset: 0;
@@ -178,20 +210,40 @@
 </head>
 <body>
 
+  <!-- Mandatory User Registration Overlay -->
+  <div id="registerOverlay">
+    <div class="register-card">
+      <h2>Join Camera Hub</h2>
+      <p>Enter your full name and a 6-digit PIN to access live streams.</p>
+      
+      <div class="reg-field">
+        <label>Your Name</label>
+        <input type="text" id="regName" placeholder="e.g. Alex Smith" autocomplete="off" />
+      </div>
+
+      <div class="reg-field">
+        <label>6-Digit PIN</label>
+        <input type="password" id="regPin" placeholder="••••••" maxlength="6" inputmode="numeric" />
+      </div>
+
+      <div class="reg-error" id="regError"></div>
+      <button class="btn-register" onclick="submitRegistration()">Enter Hub</button>
+    </div>
+  </div>
+
   <header>
     <div class="brand">
       <div id="statusDot" class="status-dot"></div>
-      <span>Live Cam Network</span>
+      <span>Live Cam Hub</span>
     </div>
 
-    <!-- Live Stream Search Input -->
     <div class="search-box">
       <input type="text" id="streamSearch" placeholder="🔍 Search streamer by name..." oninput="filterStreams()" />
     </div>
 
     <div class="controls">
-      <input type="text" id="userInput" class="user-input" placeholder="Your Name" />
-      <button id="goLiveBtn" class="btn-live" onclick="toggleBroadcasting()">Go Live (Camera)</button>
+      <span class="user-tag" id="userBadge">Guest</span>
+      <button id="goLiveBtn" class="btn-live" onclick="toggleBroadcasting()">Go Live</button>
       <button id="toggleCamBtn" class="btn-media" onclick="toggleCamera()" style="display:none;">Cam Off</button>
       <button id="toggleMicBtn" class="btn-media" onclick="toggleMic()" style="display:none;">Mute Mic</button>
     </div>
@@ -200,7 +252,7 @@
   <main>
     <div class="video-grid" id="grid">
       <div id="emptyNotice" style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: #64748b;">
-        Connecting to online cameras...
+        Connecting to active online cameras...
       </div>
     </div>
   </main>
@@ -219,22 +271,67 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxB-xsqymTmcVU7tqiitoD47zkN0j-5qHmMwxKoOGTdTdWdLcabGg-VB6-H-g9ENYncRg/exec";
     const ROOM_ID = "room1";
 
+    let currentUser = null;
     let peer = null;
     let myPeerId = null;
     let localStream = null;
     let isBroadcaster = false;
     let activeCalls = {};
-    let currentStreamsData = {};
-    let userName = "Visitor_" + Math.floor(100 + Math.random() * 900);
 
-    document.getElementById("userInput").value = userName;
-
-    // Automatic Join as a Viewer on load (No camera required)
+    // Check if user credentials already exist in session
     window.addEventListener("DOMContentLoaded", () => {
-      initPeer();
+      const savedUser = sessionStorage.getItem("camhub_user");
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        document.getElementById("registerOverlay").style.display = "none";
+        initHub();
+      }
     });
 
-    function initPeer() {
+    // Step 1: Submit Registration
+    async function submitRegistration() {
+      const name = document.getElementById("regName").value.trim();
+      const pin = document.getElementById("regPin").value.trim();
+      const errEl = document.getElementById("regError");
+      errEl.textContent = "";
+
+      if (!name) {
+        errEl.textContent = "Please enter your name.";
+        return;
+      }
+      if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+        errEl.textContent = "PIN must be exactly 6 numeric digits.";
+        return;
+      }
+
+      errEl.textContent = "Verifying with Google Sheet...";
+
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "register", name: name, pin: pin })
+        });
+        const resp = await res.json();
+
+        if (resp.status === "ok") {
+          currentUser = { name: resp.name, pin: pin };
+          sessionStorage.setItem("camhub_user", JSON.stringify(currentUser));
+          document.getElementById("registerOverlay").style.display = "none";
+          initHub();
+        } else {
+          errEl.textContent = resp.message || "Registration failed.";
+        }
+      } catch (err) {
+        errEl.textContent = "Network error. Try again.";
+        console.error(err);
+      }
+    }
+
+    // Step 2: Initialize Hub as a Viewer immediately (No camera asked)
+    function initHub() {
+      document.getElementById("userBadge").textContent = currentUser.name;
+
       peer = new Peer({
         config: {
           iceServers: [
@@ -253,7 +350,7 @@
         setInterval(syncRegistry, 4000);
       });
 
-      // Handle receiving stream from broadaster
+      // Handle receiving incoming streams
       peer.on("call", (call) => {
         call.answer(localStream || undefined);
         const callerName = call.metadata?.name || "Broadcaster";
@@ -270,11 +367,9 @@
       });
     }
 
-    // Toggle Broadcaster Mode
+    // Step 3: Optional Broadcasting ("Go Live")
     async function toggleBroadcasting() {
       const liveBtn = document.getElementById("goLiveBtn");
-      const nameVal = document.getElementById("userInput").value.trim();
-      if (nameVal) userName = nameVal;
 
       if (!isBroadcaster) {
         try {
@@ -288,9 +383,8 @@
           liveBtn.className = "btn-stop";
           document.getElementById("toggleCamBtn").style.display = "inline-block";
           document.getElementById("toggleMicBtn").style.display = "inline-block";
-          document.getElementById("userInput").disabled = true;
 
-          renderCard("local", userName + " (You)", localStream, true);
+          renderCard("local", currentUser.name + " (You)", localStream, true);
           syncRegistry();
         } catch (err) {
           alert("Camera/Audio access failed: " + err.message);
@@ -301,23 +395,21 @@
           localStream = null;
         }
         isBroadcaster = false;
-        liveBtn.textContent = "Go Live (Camera)";
+        liveBtn.textContent = "Go Live";
         liveBtn.className = "btn-live";
         document.getElementById("toggleCamBtn").style.display = "none";
         document.getElementById("toggleMicBtn").style.display = "none";
-        document.getElementById("userInput").disabled = false;
 
         removeCard("local");
         syncRegistry();
       }
     }
 
-    // Sheet Syncing & Peer Discovery
+    // Synchronize Registry & Discover Online Feeds
     async function syncRegistry() {
-      if (!myPeerId || SCRIPT_URL === "YOUR_APPS_SCRIPT_WEB_APP_URL") return;
+      if (!myPeerId || !currentUser) return;
 
       try {
-        // Send heartbeat
         await fetch(SCRIPT_URL, {
           method: "POST",
           mode: "no-cors",
@@ -326,26 +418,23 @@
             action: "heartbeat",
             room: ROOM_ID,
             peerId: myPeerId,
-            name: userName,
+            name: currentUser.name,
             role: isBroadcaster ? "broadcaster" : "viewer"
           })
         });
 
-        // Get active broadcasters, counts, reactions & comments
         const res = await fetch(`${SCRIPT_URL}?room=${encodeURIComponent(ROOM_ID)}`);
         const data = await res.json();
 
         const activeBroadcasterIds = new Set(data.broadcasters.map(b => b.peerId));
 
-        // Update cards with latest viewer count, likes, and comments
         data.broadcasters.forEach(b => {
-          currentStreamsData[b.peerId] = b;
           updateCardMeta(b.peerId, data.viewerCount, b.likes, b.dislikes, b.comments);
 
-          // If viewer has not connected to this broadcaster yet, call them to receive feed
+          // Viewer initiates connection to watch broadcaster
           if (b.peerId !== myPeerId && !activeCalls[b.peerId]) {
             const call = peer.call(b.peerId, localStream || undefined, {
-              metadata: { name: userName }
+              metadata: { name: currentUser.name }
             });
 
             call.on("stream", (remoteStream) => {
@@ -360,20 +449,20 @@
           }
         });
 
-        // Clean up disconnected broadcasters
+        // Clean offline streams
         Object.keys(activeCalls).forEach(id => {
           if (!activeBroadcasterIds.has(id)) {
             removeCard(id);
           }
         });
 
-        filterStreams(); // Re-apply search filter
+        filterStreams();
       } catch (err) {
         console.error("Sync error:", err);
       }
     }
 
-    // Build the Card UI (Video + Likes + Dislikes + Comments)
+    // Render Stream UI
     function renderCard(id, name, stream, isMuted) {
       document.getElementById("emptyNotice").style.display = "none";
       if (document.getElementById("card-" + id)) return;
@@ -401,7 +490,7 @@
         <div class="comment-section">
           <div class="comment-list" id="comments-${id}"></div>
           <div class="comment-form">
-            <input type="text" id="input-comment-${id}" placeholder="Type comment..." onkeydown="if(event.key==='Enter') sendComment('${id}')" />
+            <input type="text" id="input-comment-${id}" placeholder="Say something..." onkeydown="if(event.key==='Enter') sendComment('${id}')" />
             <button onclick="sendComment('${id}')">Send</button>
           </div>
         </div>
@@ -420,7 +509,6 @@
       grid.appendChild(card);
     }
 
-    // Update real-time metadata on card
     function updateCardMeta(id, viewers, likes, dislikes, comments) {
       const vEl = document.getElementById(`viewers-${id}`);
       const lEl = document.getElementById(`likes-${id}`);
@@ -448,16 +536,12 @@
         activeCalls[id].close();
         delete activeCalls[id];
       }
-      delete currentStreamsData[id];
-
       if (document.querySelectorAll(".video-card").length === 0) {
         document.getElementById("emptyNotice").style.display = "block";
       }
     }
 
-    // Send Reaction (Like/Dislike)
     async function sendReaction(targetPeerId, reactionType) {
-      // Optimistic local update
       const counterEl = document.getElementById(`${reactionType}s-${targetPeerId}`);
       if (counterEl) counterEl.textContent = parseInt(counterEl.textContent || 0) + 1;
 
@@ -465,38 +549,26 @@
         method: "POST",
         mode: "no-cors",
         headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({
-          action: "reaction",
-          targetPeerId: targetPeerId,
-          reactionType: reactionType
-        })
+        body: JSON.stringify({ action: "reaction", targetPeerId: targetPeerId, reactionType: reactionType })
       });
     }
 
-    // Send Live Comment
     async function sendComment(targetPeerId) {
       const input = document.getElementById(`input-comment-${targetPeerId}`);
       const text = input.value.trim();
       if (!text) return;
-
       input.value = "";
 
       await fetch(SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
         headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({
-          action: "comment",
-          targetPeerId: targetPeerId,
-          user: userName,
-          text: text
-        })
+        body: JSON.stringify({ action: "comment", targetPeerId: targetPeerId, user: currentUser.name, text: text })
       });
 
       syncRegistry();
     }
 
-    // Search and Filter Stream Cards
     function filterStreams() {
       const query = document.getElementById("streamSearch").value.trim().toLowerCase();
       const cards = document.querySelectorAll(".video-card");
@@ -510,13 +582,12 @@
       });
     }
 
-    // Fullscreen View
     function openFullscreen(title, stream) {
       const modal = document.getElementById("fullscreenModal");
       const modalVideo = document.getElementById("modalVideo");
       document.getElementById("modalTitle").textContent = title;
       modalVideo.srcObject = stream;
-      modalVideo.muted = false; // Enable audio
+      modalVideo.muted = false;
       modal.classList.add("active");
     }
 
