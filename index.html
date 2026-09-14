@@ -2,18 +2,50 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Live Camera Hub</title>
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #0b0f17; color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; }
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#0b0f17" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Live Hub" />
+  
+  <!-- Inline SVG PWA Icon & Apple Touch Icon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f172a'/><path d='M30 36h40a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H30a4 4 0 0 1-4-4V40a4 4 0 0 1 4-4z' fill='%2338bdf8'/><polygon points='76,44 88,36 88,64 76,56' fill='%23ef4444'/><circle cx='50' cy='50' r='6' fill='%230f172a'/></svg>" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f172a'/><path d='M30 36h40a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H30a4 4 0 0 1-4-4V40a4 4 0 0 1 4-4z' fill='%2338bdf8'/><polygon points='76,44 88,36 88,64 76,56' fill='%23ef4444'/><circle cx='50' cy='50' r='6' fill='%230f172a'/></svg>" />
 
-    /* Auth Modal */
+  <!-- Inline Web App Manifest -->
+  <link rel="manifest" href='data:application/manifest+json,{"name":"Live Camera Hub","short_name":"LiveHub","start_url":".","display":"standalone","background_color":"%230b0f17","theme_color":"%230b0f17","icons":[{"src":"data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><rect width=%27100%27 height=%27100%27 rx=%2722%27 fill=%27%230f172a%27/><path d=%27M30 36h40a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H30a4 4 0 0 1-4-4V40a4 4 0 0 1 4-4z%27 fill=%27%2338bdf8%27/><polygon points=%2776,44 88,36 88,64 76,56%27 fill=%27%23ef4444%27/><circle cx=%2750%27 cy=%2750%27 r=%276%27 fill=%27%230f172a%27/></svg>","sizes":"512x512","type":"image/svg+xml"}]}' />
+
+  <!-- WebRTC Library -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Block Pull Down to Refresh on mobile */
+    html, body {
+      overscroll-behavior-y: contain;
+      overflow-x: hidden;
+      background-color: #0b0f17;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Login/Register Overlay */
     #authOverlay {
       position: fixed;
       inset: 0;
-      background: rgba(11, 15, 23, 0.96);
+      background: rgba(11, 15, 23, 0.98);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -24,13 +56,13 @@
       background: #131d2e;
       border: 1px solid #1e293b;
       border-radius: 14px;
-      padding: 32px 26px;
+      padding: 30px 24px;
       max-width: 380px;
       width: 100%;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.7);
       text-align: center;
     }
-    .auth-card h2 { font-size: 22px; margin-bottom: 6px; color: #f8fafc; }
+    .auth-card h2 { font-size: 22px; margin-bottom: 6px; }
     .auth-card p { font-size: 13px; color: #94a3b8; margin-bottom: 20px; }
     .field { display: flex; flex-direction: column; gap: 6px; text-align: left; margin-bottom: 14px; }
     .field label { font-size: 12px; color: #cbd5e1; font-weight: 600; }
@@ -57,51 +89,50 @@
       font-size: 14px;
     }
 
-    /* Main Header */
+    /* Header Nav */
     header {
-      padding: 12px 20px;
+      padding: 10px 16px;
       background: #111827;
       border-bottom: 1px solid #1f2937;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       position: sticky;
       top: 0;
       z-index: 100;
     }
-    .brand { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; }
+    .brand { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; }
     .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
     .status-dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
 
-    .search-box { flex: 1; max-width: 340px; }
+    .search-box { flex: 1; min-width: 160px; max-width: 320px; }
     .search-box input {
       width: 100%;
-      padding: 8px 14px;
+      padding: 7px 12px;
       background: #1e293b;
       border: 1px solid #334155;
       color: #fff;
       border-radius: 20px;
-      font-size: 14px;
+      font-size: 13px;
       outline: none;
     }
-    .search-box input:focus { border-color: #38bdf8; }
 
-    .controls { display: flex; gap: 10px; align-items: center; }
-    .user-tag { background: #1e293b; padding: 6px 12px; border-radius: 6px; font-size: 13px; color: #38bdf8; font-weight: 600; }
-    button { padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; }
+    .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .user-tag { background: #1e293b; padding: 6px 10px; border-radius: 6px; font-size: 12px; color: #38bdf8; font-weight: 600; }
+    button { padding: 7px 12px; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; }
     .btn-live { background: #ef4444; color: #fff; }
     .btn-stop { background: #475569; color: #f8fafc; }
+    .btn-refresh { background: #0284c7; color: #fff; display: flex; align-items: center; gap: 4px; }
     .btn-logout { background: #334155; color: #fca5a5; }
-    .btn-logout:hover { background: #475569; }
     .btn-media { background: #1e293b; color: #f8fafc; border: 1px solid #334155; }
 
-    main { flex: 1; padding: 20px; }
+    main { flex: 1; padding: 16px; }
     .video-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 16px;
     }
 
     .video-card {
@@ -131,9 +162,10 @@
       justify-content: space-between;
       pointer-events: none;
     }
-    .badge-name { background: rgba(0, 0, 0, 0.75); padding: 4px 8px; border-radius: 6px; font-size: 12px; backdrop-filter: blur(4px); }
+    .badge-name { background: rgba(0, 0, 0, 0.75); padding: 4px 8px; border-radius: 6px; font-size: 12px; }
     .badge-fullscreen { background: rgba(56, 189, 248, 0.9); color: #020617; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
 
+    /* Score & Point Control Bar */
     .card-footer {
       padding: 10px 14px;
       background: #0d1524;
@@ -142,29 +174,37 @@
       align-items: center;
       border-top: 1px solid #1e293b;
     }
-    .viewer-tag { font-size: 12px; color: #38bdf8; display: flex; align-items: center; gap: 4px; }
-    .reaction-bar { display: flex; gap: 8px; }
-    .btn-react {
-      background: #1e293b;
-      color: #cbd5e1;
-      border: 1px solid #334155;
-      padding: 5px 10px;
-      border-radius: 16px;
-      font-size: 12px;
+    .score-badge {
+      font-size: 13px;
+      font-weight: 700;
+      color: #38bdf8;
       display: flex;
       align-items: center;
       gap: 5px;
-      cursor: pointer;
     }
-    .btn-react:hover { background: #334155; }
+    .point-buttons { display: flex; gap: 6px; }
+    .btn-point {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+    .btn-point-plus { background: #065f46; color: #34d399; border-color: #059669; }
+    .btn-point-plus:active { transform: scale(0.92); }
+    .btn-point-minus { background: #7f1d1d; color: #f87171; border-color: #dc2626; }
+    .btn-point-minus:active { transform: scale(0.92); }
 
+    /* Live Comment Box */
     .comment-section {
       background: #090d16;
       border-top: 1px solid #1e293b;
       padding: 10px 14px;
       display: flex;
       flex-direction: column;
-      height: 160px;
+      height: 155px;
     }
     .comment-list {
       flex: 1;
@@ -213,11 +253,11 @@
 </head>
 <body>
 
-  <!-- Mandatory Login/Register Overlay -->
+  <!-- Login/Register Overlay -->
   <div id="authOverlay">
     <div class="auth-card">
-      <h2>Welcome</h2>
-      <p>Log in or create an account with your Name and a 6-digit PIN.</p>
+      <h2>Welcome to Live Hub</h2>
+      <p>Enter your username and 6-digit PIN to join.</p>
       
       <div class="field">
         <label>Username</label>
@@ -230,14 +270,15 @@
       </div>
 
       <div class="auth-error" id="authError"></div>
-      <button class="btn-auth" onclick="handleAuth()">Login / Register</button>
+      <button class="btn-auth" onclick="handleAuth()">Enter Hub</button>
     </div>
   </div>
 
+  <!-- Main Navigation Bar -->
   <header>
     <div class="brand">
       <div id="statusDot" class="status-dot"></div>
-      <span>Live Cam Hub</span>
+      <span>Live Hub</span>
     </div>
 
     <div class="search-box">
@@ -245,6 +286,7 @@
     </div>
 
     <div class="controls">
+      <button class="btn-refresh" onclick="manualRefresh()" title="Scan for latest cameras">🔄 Refresh</button>
       <span class="user-tag" id="userBadge">Guest</span>
       <button id="goLiveBtn" class="btn-live" onclick="toggleBroadcasting()">Go Live</button>
       <button id="toggleCamBtn" class="btn-media" onclick="toggleCamera()" style="display:none;">Cam Off</button>
@@ -261,6 +303,7 @@
     </div>
   </main>
 
+  <!-- Fullscreen Modal View -->
   <div id="fullscreenModal">
     <video id="modalVideo" autoplay playsinline></video>
     <div class="modal-controls">
@@ -282,7 +325,17 @@
     let outgoingCalls = {};
     let syncTimer = null;
 
-    // Check existing login session
+    // Register Service Worker dynamically for PWA compliance
+    if ("serviceWorker" in navigator) {
+      const swCode = `
+        self.addEventListener('install', e => self.skipWaiting());
+        self.addEventListener('activate', e => self.clients.claim());
+        self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));
+      `;
+      const blob = new Blob([swCode], { type: "application/javascript" });
+      navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+    }
+
     window.addEventListener("DOMContentLoaded", () => {
       const savedUser = localStorage.getItem("camhub_auth");
       if (savedUser) {
@@ -292,7 +345,7 @@
       }
     });
 
-    // 1. Login / Register Handler
+    // Authentication
     async function handleAuth() {
       const name = document.getElementById("authName").value.trim();
       const pin = document.getElementById("authPin").value.trim();
@@ -308,7 +361,7 @@
         return;
       }
 
-      errEl.textContent = "Authenticating...";
+      errEl.textContent = "Verifying...";
 
       try {
         const res = await fetch(SCRIPT_URL, {
@@ -331,7 +384,7 @@
       }
     }
 
-    // 2. Logout Handler
+    // Logout
     async function handleLogout() {
       if (localStream) {
         localStream.getTracks().forEach(t => t.stop());
@@ -350,7 +403,6 @@
       isBroadcaster = false;
       outgoingCalls = {};
 
-      // Reset UI
       document.getElementById("grid").innerHTML = `
         <div id="emptyNotice" style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: #64748b;">
           Connecting to active online cameras...
@@ -367,7 +419,7 @@
       document.getElementById("toggleMicBtn").style.display = "none";
     }
 
-    // 3. Initialize Hub After Login (Viewer by default, immediately receives feeds)
+    // Initialize Hub
     function initHub() {
       document.getElementById("userBadge").textContent = currentUser.name;
 
@@ -388,7 +440,6 @@
         syncTimer = setInterval(syncRegistry, 4000);
       });
 
-      // Viewers receive calls from broadcasters
       peer.on("call", (call) => {
         call.answer();
 
@@ -403,7 +454,7 @@
       });
     }
 
-    // 4. Broadcaster Toggle
+    // Toggle Camera (Broadcaster)
     async function toggleBroadcasting() {
       const liveBtn = document.getElementById("goLiveBtn");
 
@@ -444,7 +495,16 @@
       }
     }
 
-    // 5. Google Sheet Session Syncing & Peer Discovery
+    // Manual Refresh
+    function manualRefresh() {
+      const btn = document.querySelector(".btn-refresh");
+      btn.textContent = "Scanning...";
+      syncRegistry().finally(() => {
+        setTimeout(() => { btn.textContent = "🔄 Refresh"; }, 800);
+      });
+    }
+
+    // State Synchronization Loop
     async function syncRegistry() {
       if (!myPeerId || !currentUser) return;
 
@@ -465,12 +525,17 @@
         const res = await fetch(`${SCRIPT_URL}?room=${encodeURIComponent(ROOM_ID)}`);
         const data = await res.json();
 
-        // Update card metadata (viewers, likes, comments)
+        // Update meta for remote viewers and local broadcaster card
         data.broadcasters.forEach(b => {
-          updateCardMeta(b.peerId, data.totalAudience, b.likes, b.dislikes, b.comments);
+          // If this broadcaster record matches self, update local card too
+          if (b.peerId === myPeerId && isBroadcaster) {
+            updateCardMeta("local", b.score, b.comments);
+          } else {
+            updateCardMeta(b.peerId, b.score, b.comments);
+          }
         });
 
-        // If broadcasting, push video feed to all active viewers and peer broadcasters
+        // Push outgoing stream to new viewers & peer broadcasters
         if (isBroadcaster && localStream) {
           data.viewers.forEach(v => {
             if (v.peerId !== myPeerId && !outgoingCalls[v.peerId]) {
@@ -491,7 +556,7 @@
           });
         }
 
-        // Remove disconnected broadcasters
+        // Clean offline broadcasters
         const activeBroadcasterIds = new Set(data.broadcasters.map(b => b.peerId));
         document.querySelectorAll(".video-card").forEach(card => {
           const id = card.id.replace("card-", "");
@@ -506,6 +571,7 @@
       }
     }
 
+    // Render Stream Tile
     function renderCard(id, name, stream, isMuted) {
       document.getElementById("emptyNotice").style.display = "none";
       if (document.getElementById("card-" + id)) return;
@@ -524,16 +590,16 @@
           </div>
         </div>
         <div class="card-footer">
-          <div class="viewer-tag">👁 <span id="viewers-${id}">0</span> watching</div>
-          <div class="reaction-bar">
-            <button class="btn-react" onclick="sendReaction('${id}', 'like')">👍 <span id="likes-${id}">0</span></button>
-            <button class="btn-react" onclick="sendReaction('${id}', 'dislike')">👎 <span id="dislikes-${id}">0</span></button>
+          <div class="score-badge">⭐ Score: <span id="score-${id}">0</span></div>
+          <div class="point-buttons">
+            <button class="btn-point btn-point-plus" onclick="sendScore('${id}', 1)">+1</button>
+            <button class="btn-point btn-point-minus" onclick="sendScore('${id}', -1)">-1</button>
           </div>
         </div>
         <div class="comment-section">
           <div class="comment-list" id="comments-${id}"></div>
           <div class="comment-form">
-            <input type="text" id="input-comment-${id}" placeholder="Type comment..." onkeydown="if(event.key==='Enter') sendComment('${id}')" />
+            <input type="text" id="input-comment-${id}" placeholder="Type a comment..." onkeydown="if(event.key==='Enter') sendComment('${id}')" />
             <button onclick="sendComment('${id}')">Send</button>
           </div>
         </div>
@@ -552,15 +618,12 @@
       grid.appendChild(card);
     }
 
-    function updateCardMeta(id, viewers, likes, dislikes, comments) {
-      const vEl = document.getElementById(`viewers-${id}`);
-      const lEl = document.getElementById(`likes-${id}`);
-      const dEl = document.getElementById(`dislikes-${id}`);
+    // Update Scores and Comments
+    function updateCardMeta(id, score, comments) {
+      const sEl = document.getElementById(`score-${id}`);
       const cEl = document.getElementById(`comments-${id}`);
 
-      if (vEl) vEl.textContent = viewers;
-      if (lEl) lEl.textContent = likes || 0;
-      if (dEl) dEl.textContent = dislikes || 0;
+      if (sEl) sEl.textContent = score !== undefined ? score : 0;
 
       if (cEl && comments) {
         cEl.innerHTML = comments.map(c => `
@@ -584,20 +647,31 @@
       }
     }
 
-    async function sendReaction(targetPeerId, reactionType) {
-      const counterEl = document.getElementById(`${reactionType}s-${targetPeerId}`);
-      if (counterEl) counterEl.textContent = parseInt(counterEl.textContent || 0) + 1;
+    // Send Point (+1 or -1)
+    async function sendScore(cardId, delta) {
+      const targetPeerId = cardId === "local" ? myPeerId : cardId;
+      const sEl = document.getElementById(`score-${cardId}`);
+      if (sEl) {
+        const current = parseInt(sEl.textContent || "0", 10);
+        sEl.textContent = current + delta;
+      }
 
       await fetch(SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
         headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ action: "reaction", targetPeerId: targetPeerId, reactionType: reactionType })
+        body: JSON.stringify({
+          action: "vote",
+          targetPeerId: targetPeerId,
+          delta: delta
+        })
       });
     }
 
-    async function sendComment(targetPeerId) {
-      const input = document.getElementById(`input-comment-${targetPeerId}`);
+    // Send Comment
+    async function sendComment(cardId) {
+      const targetPeerId = cardId === "local" ? myPeerId : cardId;
+      const input = document.getElementById(`input-comment-${cardId}`);
       const text = input.value.trim();
       if (!text) return;
       input.value = "";
@@ -606,12 +680,18 @@
         method: "POST",
         mode: "no-cors",
         headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ action: "comment", targetPeerId: targetPeerId, user: currentUser.name, text: text })
+        body: JSON.stringify({
+          action: "comment",
+          targetPeerId: targetPeerId,
+          user: currentUser.name,
+          text: text
+        })
       });
 
       syncRegistry();
     }
 
+    // Filter by Streamer Name
     function filterStreams() {
       const query = document.getElementById("streamSearch").value.trim().toLowerCase();
       const cards = document.querySelectorAll(".video-card");
@@ -625,6 +705,7 @@
       });
     }
 
+    // Fullscreen View
     function openFullscreen(title, stream) {
       const modal = document.getElementById("fullscreenModal");
       const modalVideo = document.getElementById("modalVideo");
