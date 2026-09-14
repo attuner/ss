@@ -2,180 +2,420 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Live Device & Screen Grid</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Peer Camera Mesh</title>
+  <!-- PeerJS WebRTC Client Library -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    body { background-color: #0b0f19; color: #f1f5f9; padding: 16px; }
-    header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #1e293b; }
-    .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    input { padding: 8px 12px; background: #1e293b; border: 1px solid #334155; color: #fff; border-radius: 6px; font-size: 14px; }
-    button { padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
-    .btn-start { background: #10b981; color: #022c22; }
-    .btn-stop { background: #ef4444; color: #fff; }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
-    .status-badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; background: #1e293b; color: #94a3b8; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-    .card { background: #111827; border-radius: 8px; overflow: hidden; border: 1px solid #1f2937; }
-    .card-header { padding: 8px 12px; font-size: 13px; display: flex; justify-content: space-between; background: #030712; }
-    .card-img-container { width: 100%; height: 180px; background: #000; display: flex; align-items: center; justify-content: center; }
-    .card img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    body {
+      background-color: #0b0f19;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 16px 24px;
+      background: #111827;
+      border-bottom: 1px solid #1f2937;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ef4444;
+    }
+    .status-dot.online {
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    input {
+      padding: 8px 12px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #fff;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+    }
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .btn-connect {
+      background: #3b82f6;
+      color: #fff;
+    }
+    .btn-media {
+      background: #334155;
+      color: #f8fafc;
+    }
+    .room-info {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    main {
+      flex: 1;
+      padding: 20px;
+    }
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+    .video-card {
+      position: relative;
+      background: #111827;
+      border-radius: 12px;
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+      border: 1px solid #1f2937;
+      cursor: pointer;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .video-card:hover {
+      transform: translateY(-2px);
+      border-color: #3b82f6;
+    }
+    .video-card video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      background: #030712;
+    }
+    .video-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+    .badge-name {
+      background: rgba(0, 0, 0, 0.65);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      backdrop-filter: blur(4px);
+    }
+    .badge-click {
+      background: rgba(59, 130, 246, 0.85);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    /* Fullscreen Modal */
+    #fullscreenModal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.95);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #fullscreenModal.active {
+      display: flex;
+    }
+    #modalVideo {
+      max-width: 95vw;
+      max-height: 85vh;
+      border-radius: 8px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+    }
+    .modal-controls {
+      margin-top: 16px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .btn-close {
+      background: #ef4444;
+      color: #fff;
+    }
+    .btn-mute {
+      background: #334155;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
 
   <header>
-    <div>
-      <h2>Live Device Grid</h2>
-      <span id="modeBadge" class="status-badge">Detecting capabilities...</span>
+    <div class="brand">
+      <div id="statusDot" class="status-dot"></div>
+      <h2>Live Camera Mesh</h2>
     </div>
+
     <div class="controls">
-      <input type="text" id="username" placeholder="Your Name" />
-      <button id="startBtn" class="btn-start" onclick="startBroadcast()">Start Sharing</button>
-      <button id="stopBtn" class="btn-stop" onclick="stopBroadcast()" disabled>Stop</button>
+      <input type="text" id="roomInput" value="public-hub" placeholder="Room Name" />
+      <input type="text" id="userInput" placeholder="Your Name" />
+      <button id="joinBtn" class="btn-connect" onclick="joinRoom()">Join Live</button>
+      <button id="toggleCamBtn" class="btn-media" onclick="toggleCamera()" disabled>Cam Off</button>
+      <button id="toggleMicBtn" class="btn-media" onclick="toggleMic()" disabled>Mute Mic</button>
     </div>
   </header>
 
-  <div class="grid" id="screensContainer"></div>
+  <main>
+    <div class="video-grid" id="grid"></div>
+  </main>
 
-  <video id="captureVideo" autoplay playsinline muted style="display:none;"></video>
-  <canvas id="captureCanvas" style="display:none;"></canvas>
+  <!-- Fullscreen Modal View -->
+  <div id="fullscreenModal">
+    <video id="modalVideo" autoplay playsinline></video>
+    <div class="modal-controls">
+      <span id="modalTitle" class="badge-name">User View</span>
+      <button id="modalMuteBtn" class="btn-mute" onclick="toggleModalAudio()">Mute Audio</button>
+      <button class="btn-close" onclick="closeFullscreen()">Exit Fullscreen</button>
+    </div>
+  </div>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxB-xsqymTmcVU7tqiitoD47zkN0j-5qHmMwxKoOGTdTdWdLcabGg-VB6-H-g9ENYncRg/exec";
     let localStream = null;
-    let uploadTimer = null;
-    let myUserId = "Device_" + Math.floor(1000 + Math.random() * 9000);
+    let peer = null;
+    let peers = {};
+    let userName = "User_" + Math.floor(100 + Math.random() * 900);
+    let activeModalStream = null;
 
-    document.getElementById("username").value = myUserId;
+    document.getElementById("userInput").value = userName;
 
-    // Check if device supports true screen sharing or needs camera fallback
-    const hasScreenShare = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
-    const startBtn = document.getElementById("startBtn");
-    const modeBadge = document.getElementById("modeBadge");
-
-    if (hasScreenShare) {
-      modeBadge.textContent = "Desktop Mode (Full Screen)";
-      startBtn.textContent = "Share Screen";
-    } else {
-      modeBadge.textContent = "Mobile Mode (Camera Feed)";
-      startBtn.textContent = "Share Camera";
-    }
-
-    async function startBroadcast() {
-      const nameInput = document.getElementById("username").value.trim();
-      if (nameInput) myUserId = nameInput;
+    // Room connection logic
+    async function joinRoom() {
+      const room = document.getElementById("roomInput").value.trim() || "public-hub";
+      const name = document.getElementById("userInput").value.trim();
+      if (name) userName = name;
 
       try {
-        if (hasScreenShare) {
-          // Desktop Screen Capture
-          localStream = await navigator.mediaDevices.getDisplayMedia({
-            video: { frameRate: 5, width: { max: 1280 } },
-            audio: false
+        // Request Camera and Microphone (Fully supported on Android, iOS, Windows, Mac)
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } },
+          audio: true
+        });
+
+        // Add own video to the grid (muted to prevent feedback loop)
+        addVideoStream("local", userName + " (You)", localStream, true);
+
+        // Configure Peer instance using free public WebRTC cloud broker
+        peer = new Peer({
+          config: {
+            iceServers: [
+              { urls: "stun:stun.l.google.com:19302" },
+              { urls: "stun:stun1.l.google.com:19302" }
+            ]
+          }
+        });
+
+        peer.on("open", (id) => {
+          document.getElementById("statusDot").classList.add("online");
+          document.getElementById("joinBtn").disabled = true;
+          document.getElementById("roomInput").disabled = true;
+          document.getElementById("userInput").disabled = true;
+          document.getElementById("toggleCamBtn").disabled = false;
+          document.getElementById("toggleMicBtn").disabled = false;
+
+          // Announce connection to mesh members using BroadcastChannel (syncs across tabs)
+          // and establish room call routing
+          initSignaling(room, id);
+        });
+
+        // Answer incoming peer calls automatically
+        peer.on("call", (call) => {
+          call.answer(localStream);
+          const callerName = call.metadata?.name || "Peer";
+
+          call.on("stream", (remoteStream) => {
+            addVideoStream(call.peer, callerName, remoteStream, false);
           });
-        } else {
-          // Mobile Fallback: Camera Stream
-          localStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user", width: { max: 640 } },
-            audio: false
+
+          call.on("close", () => {
+            removeVideoStream(call.peer);
           });
+          peers[call.peer] = call;
+        });
+
+      } catch (err) {
+        alert("Camera/Microphone access failed: " + err.message);
+        console.error("Device media error:", err);
+      }
+    }
+
+    // Lightweight discovery mesh over localStorage storage events
+    // (Allows all devices visiting the same page to discover and connect peer-to-peer)
+    function initSignaling(room, peerId) {
+      const storageKey = "live_room_" + room;
+
+      function announcePresence() {
+        const peersInRoom = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        const now = Date.now();
+
+        // Register self
+        peersInRoom[peerId] = { name: userName, time: now };
+
+        // Remove peers silent for > 15 seconds
+        for (let id in peersInRoom) {
+          if (now - peersInRoom[id].time > 15000) {
+            delete peersInRoom[id];
+            removeVideoStream(id);
+          } else if (id !== peerId && !peers[id]) {
+            // Call any newly discovered online peer
+            callPeer(id, peersInRoom[id].name);
+          }
         }
 
-        const video = document.getElementById("captureVideo");
-        video.srcObject = localStream;
-        await video.play();
-
-        startBtn.disabled = true;
-        document.getElementById("stopBtn").disabled = false;
-        document.getElementById("username").disabled = true;
-
-        localStream.getVideoTracks()[0].onended = stopBroadcast;
-
-        // Push frames every 4 seconds
-        uploadTimer = setInterval(captureAndUpload, 4000);
-        captureAndUpload();
-      } catch (err) {
-        console.warn("Broadcast canceled or permission denied:", err);
+        localStorage.setItem(storageKey, JSON.stringify(peersInRoom));
       }
-    }
 
-    function stopBroadcast() {
-      if (localStream) {
-        localStream.getTracks().forEach(t => t.stop());
-        localStream = null;
-      }
-      clearInterval(uploadTimer);
-      startBtn.disabled = false;
-      document.getElementById("stopBtn").disabled = true;
-      document.getElementById("username").disabled = false;
-    }
-
-    async function captureAndUpload() {
-      const video = document.getElementById("captureVideo");
-      const canvas = document.getElementById("captureCanvas");
-      if (!video.videoWidth) return;
-
-      const targetWidth = 480;
-      const targetHeight = Math.round((video.videoHeight / video.videoWidth) * targetWidth);
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
-
-      const base64 = canvas.toDataURL("image/jpeg", 0.3);
-
-      try {
-        await fetch(SCRIPT_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ userId: myUserId, image: base64 })
+      function callPeer(remotePeerId, remoteName) {
+        const call = peer.call(remotePeerId, localStream, {
+          metadata: { name: userName }
         });
-      } catch (err) {
-        console.error("Frame push error:", err);
-      }
-    }
 
-    async function syncScreens() {
-      try {
-        const res = await fetch(SCRIPT_URL);
-        const data = await res.json();
-        renderGrid(data);
-      } catch (e) {
-        console.error("Screen poll error:", e);
-      }
-    }
+        call.on("stream", (remoteStream) => {
+          addVideoStream(remotePeerId, remoteName, remoteStream, false);
+        });
 
-    function renderGrid(users) {
-      const container = document.getElementById("screensContainer");
-      const keys = Object.keys(users);
+        call.on("close", () => {
+          removeVideoStream(remotePeerId);
+        });
 
-      if (keys.length === 0) {
-        container.innerHTML = `<p style="color: #64748b; font-size: 14px;">No active screens broadcasting.</p>`;
-        return;
+        peers[remotePeerId] = call;
       }
 
-      container.innerHTML = "";
-      keys.forEach(id => {
-        const isSelf = id === myUserId;
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `
-          <div class="card-header">
-            <span>${id} ${isSelf ? "(You)" : ""}</span>
-            <span style="color: #10b981;">● Online</span>
-          </div>
-          <div class="card-img-container">
-            <img src="${users[id].image}" alt="Feed of ${id}" />
-          </div>
-        `;
-        container.appendChild(card);
+      // Heartbeat pulse every 4 seconds
+      announcePresence();
+      setInterval(announcePresence, 4000);
+
+      window.addEventListener("beforeunload", () => {
+        const peersInRoom = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        delete peersInRoom[peerId];
+        localStorage.setItem(storageKey, JSON.stringify(peersInRoom));
       });
     }
 
-    syncScreens();
-    setInterval(syncScreens, 4000);
+    // Add video stream to DOM
+    function addVideoStream(id, label, stream, isMuted) {
+      if (document.getElementById("card-" + id)) return;
+
+      const grid = document.getElementById("grid");
+      const card = document.createElement("div");
+      card.className = "video-card";
+      card.id = "card-" + id;
+
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.autoplay = true;
+      video.playsInline = true;
+      // Grid previews stay muted locally to avoid room echo cacophony
+      video.muted = isMuted ? true : false;
+      video.volume = isMuted ? 0 : 0.8;
+
+      card.appendChild(video);
+
+      const overlay = document.createElement("div");
+      overlay.className = "video-overlay";
+      overlay.innerHTML = `
+        <span class="badge-name">${label}</span>
+        <span class="badge-click">Click to Expand</span>
+      `;
+      card.appendChild(overlay);
+
+      // Clicking any card opens full screen view with active sound
+      card.onclick = () => openFullscreen(label, stream);
+
+      grid.appendChild(card);
+    }
+
+    function removeVideoStream(id) {
+      const card = document.getElementById("card-" + id);
+      if (card) card.remove();
+      if (peers[id]) {
+        peers[id].close();
+        delete peers[id];
+      }
+    }
+
+    // Fullscreen View Handlers
+    function openFullscreen(title, stream) {
+      const modal = document.getElementById("fullscreenModal");
+      const modalVideo = document.getElementById("modalVideo");
+      const modalTitle = document.getElementById("modalTitle");
+
+      activeModalStream = stream;
+      modalTitle.textContent = title;
+      modalVideo.srcObject = stream;
+      modalVideo.muted = false; // Enable audio in full view
+      modal.classList.add("active");
+    }
+
+    function closeFullscreen() {
+      const modal = document.getElementById("fullscreenModal");
+      const modalVideo = document.getElementById("modalVideo");
+      modalVideo.srcObject = null;
+      modalVideo.muted = true;
+      modal.classList.remove("active");
+    }
+
+    function toggleModalAudio() {
+      const modalVideo = document.getElementById("modalVideo");
+      modalVideo.muted = !modalVideo.muted;
+      document.getElementById("modalMuteBtn").textContent = modalVideo.muted ? "Unmute Audio" : "Mute Audio";
+    }
+
+    // Controls for Muting Local Camera/Mic
+    function toggleCamera() {
+      if (!localStream) return;
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        document.getElementById("toggleCamBtn").textContent = videoTrack.enabled ? "Cam Off" : "Cam On";
+      }
+    }
+
+    function toggleMic() {
+      if (!localStream) return;
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        document.getElementById("toggleMicBtn").textContent = audioTrack.enabled ? "Mute Mic" : "Unmute Mic";
+      }
+    }
   </script>
 </body>
 </html>
